@@ -1,0 +1,24 @@
+{
+  "name": "mc-status-bot",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Discord-Bot, der den Live-Status eines Minecraft-Servers in einer Discord-Nachricht anzeigt.",
+  "type": "module",
+  "main": "src/index.js",
+  "updateRepo": "Sonic1305/mc-status-bot",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sonic1305/mc-status-bot.git"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "test": "node --test \"test/*.test.js\"",
+    "release": "node tools/release.js"
+  },
+  "engines": {
+    "node": ">=20.6"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+.env
+state.json
+state.json.tmp
+logs/
+update/
+start-bot.bat.new
+*.zip

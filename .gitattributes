@@ -1,0 +1,5 @@
+# Dateien byte-genau speichern (keine Zeilenende-Umwandlung).
+# Der Auto-Updater prüft SHA-256-Prüfsummen der Dateien, wie GitHub sie ausliefert –
+# sie müssen exakt den Dateien entsprechen, aus denen das Release-Manifest erzeugt wurde.
+# .bat-Dateien brauchen außerdem Windows-Zeilenenden (CRLF).
+* -text
