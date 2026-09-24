@@ -1,8 +1,9 @@
 {
-  "version": "1.2.2",
-  "tag": "v1.2.2",
+  "version": "1.2.3",
+  "tag": "v1.2.3",
   "minNode": "20.6.0",
-  "createdAt": "2026-09-24T19:23:13.646Z",
+  "createdAt": "2026-09-24T19:26:02.521Z",
+  "depsHash": "a59d052b49a3381cb68a49f349cc7187dac8a380a6a086a59f6b9339f2fb202b",
   "files": {
     ".env.example": "7f37fd569e8027fe639ac790840f0031ef179b7d554f4648e33558aca6a8c67b",
     "INSTALL.de.md": "6a0927dfd73dff3e189cd7d02b9529bac38ef88f6b4dd3ac44dbcb837a5c2b30",
@@ -15,8 +16,8 @@
     "autostart-einrichten.bat": "64ebfb8898238bd92e6f7449c7c68c4d8837699ea88761644544d32138260b2d",
     "autostart-entfernen.bat": "7363048d05331ccc8678dcd3261082c3a4e303771f1c0dae6ff57b2644ce0bb9",
     "install.bat": "57ffe67c3a1403f8e5d0e5b8a570fd79060ea235a2692e0d98ab5d9e8c5e4520",
-    "package-lock.json": "8336082348471d5528e3bf5ab7fb3e0c732f25b4850048e2f4548a7f14799a71",
-    "package.json": "9e2e37c268cc4277dc63e009555d35bbeaab543d3847d26d5f22eb6094bc088f",
+    "package-lock.json": "c355ad928c751a4d72ca4d38cac69441bc24a548d30c299c3984b7b98adc3540",
+    "package.json": "38c723a813189f905335de5d59bc9c038a64bfdb3302ec00b4990be824fbd4a2",
     "rcon-firewall-sperren.bat": "a938801b1c2944ba79f0a7c609ab4472138c240f97ca930fa08f04e6fad8cbec",
     "server-startskript/start-mit-neustart.bat": "b55552a66b4d851e8cddb3c33da193a7de2628eba5a4abcdef5e746d9e4879af",
     "src/commands.js": "25be004ced2d37a90ce36c85b832864a0fd08c054d30ed281a5175065ff3123d",
@@ -29,7 +30,7 @@
     "src/rcon.js": "03706890ad8ba94fef6554cfe54577a61f20144dd2adce8c6fd1098cfae54cc7",
     "src/restart.js": "b9a6f80b49361550c6cafd3012f621a8f0c0cbf8698bf4af3e57fb05a2dc05c0",
     "src/state.js": "3e666e5ab68d1cb20c87ada41eedbc4896480de1a3b06ca8f3d8e7afd54b3480",
-    "src/updater.js": "c25fc5b6d5fc2d59c920dfc02af40979e92f6d79d73cb5ce19bdffc27b614e9d",
+    "src/updater.js": "6a077ae51df46cee0e7005e8e2a7c26fb0be7727522b9c373aee7d98fab3c6b1",
     "start-bot.bat": "aed81a13763ca7bce445eb15043213c2e28d2e6370c915e68d7f20d810a0e18c"
   }
 }
