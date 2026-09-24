@@ -1,8 +1,8 @@
 {
-  "version": "1.2.5",
-  "tag": "v1.2.5",
+  "version": "1.2.6",
+  "tag": "v1.2.6",
   "minNode": "20.6.0",
-  "createdAt": "2026-09-24T21:10:27.336Z",
+  "createdAt": "2026-09-24T21:59:25.258Z",
   "depsHash": "a59d052b49a3381cb68a49f349cc7187dac8a380a6a086a59f6b9339f2fb202b",
   "files": {
     ".env.example": "c3a69e1079c9fe8718cb5dc44fffc03167ca574dc07f3787fb67406827d81b26",
@@ -16,14 +16,14 @@
     "autostart-einrichten.bat": "64ebfb8898238bd92e6f7449c7c68c4d8837699ea88761644544d32138260b2d",
     "autostart-entfernen.bat": "7363048d05331ccc8678dcd3261082c3a4e303771f1c0dae6ff57b2644ce0bb9",
     "install.bat": "57ffe67c3a1403f8e5d0e5b8a570fd79060ea235a2692e0d98ab5d9e8c5e4520",
-    "package-lock.json": "3561b0a4692e85f2deed4c8aa1bc38905d335f472ea3868a6cbc4d9bb7be4857",
-    "package.json": "1410c9d8013389615c4225e04671314e11ec339790fc6080668055d42b9b1bd2",
+    "package-lock.json": "41d0e97cbe71f6bfd580ed5fc4af325ab4b437508746999078b7542d1e7ab35a",
+    "package.json": "8013ebb645780f441b1da528c5747076ebc36e570e36a50a4afc96063715476b",
     "rcon-firewall-sperren.bat": "a938801b1c2944ba79f0a7c609ab4472138c240f97ca930fa08f04e6fad8cbec",
     "server-startskript/start-mit-neustart.bat": "b55552a66b4d851e8cddb3c33da193a7de2628eba5a4abcdef5e746d9e4879af",
     "src/commands.js": "b0ff728075f1da988df6b7bc98aa6aa7e9e4a8ce8791fc6bf57291ff0dadcad8",
     "src/config.js": "ea64850f8c031efb5e916dc18713b33a4c62a0a3bb25942aaec28d63919c51e1",
     "src/embed.js": "c9d68a3998aa2da6448940eed8fb955fdd0c48220c8c0c6af21c24ca170411c1",
-    "src/index.js": "3f58dbb3770e3f3accd0f1662eb0961f05e28b7eb71ab146cb89352121aaaf10",
+    "src/index.js": "ef79aa97142b611343a88190c2874c38fd9b131512b738936a2d88e025a778e1",
     "src/log.js": "92a34f093062a704b7f3fb821b4f24951b3c1c1aece1b581c6632b613790dc57",
     "src/monitor.js": "f163b9fa91a1a4b59dbd316a6780aaf1ac5af1052fc6a79168430dabe4054e62",
     "src/ping.js": "785d354b8ba7f68151a3b9714d77e8c48aa302039fc9fd8142cefdec3d7de671",
@@ -32,6 +32,7 @@
     "src/schedule.js": "27b60603f1afe5a15667ede6989e5ca7689d446cfa640236506dce2f5f90a8f4",
     "src/state.js": "acfab1be6b4b07773de1153f783e0f8d87a5ac73aa1a22f7b429572324538f60",
     "src/updater.js": "6a077ae51df46cee0e7005e8e2a7c26fb0be7727522b9c373aee7d98fab3c6b1",
+    "src/uptime.js": "b136394702386e3ecfd0d4aa751527dcea4554c419533547e8282c9c12edfa4e",
     "start-bot.bat": "aed81a13763ca7bce445eb15043213c2e28d2e6370c915e68d7f20d810a0e18c"
   }
 }
