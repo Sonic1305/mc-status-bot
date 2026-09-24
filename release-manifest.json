@@ -1,18 +1,18 @@
 {
-  "version": "1.2.0",
-  "tag": "v1.2.0",
+  "version": "1.2.1",
+  "tag": "v1.2.1",
   "minNode": "20.6.0",
-  "createdAt": "2026-09-24T18:43:22.214Z",
+  "createdAt": "2026-09-24T18:44:38.455Z",
   "files": {
     ".env.example": "7f37fd569e8027fe639ac790840f0031ef179b7d554f4648e33558aca6a8c67b",
-    "HOSTER-INSTALLATION.md": "99f7f146858d17edb14f1bb670e06ef62cca527461e629bad79168dc8b235ed0",
+    "HOSTER-INSTALLATION.md": "1425095106405cbd024db3f2b181706ebe7648d33ec1b42402f5e8dc958593a1",
     "README.md": "aad0c45276593fee69de7b185e4c2385765712183c7ef03323f566f4365d32a9",
-    "UPDATE.md": "3ee5ccaa78e2615df72dac5c91a40a7a21295728c449dae17d9f5cc71d00456e",
+    "UPDATE.md": "bcb735e0b5650cfcc27f53f51e23bfa18b1daae264dfbbfd22e520f3b5c44ff7",
     "autostart-einrichten.bat": "64ebfb8898238bd92e6f7449c7c68c4d8837699ea88761644544d32138260b2d",
     "autostart-entfernen.bat": "7363048d05331ccc8678dcd3261082c3a4e303771f1c0dae6ff57b2644ce0bb9",
     "install.bat": "57ffe67c3a1403f8e5d0e5b8a570fd79060ea235a2692e0d98ab5d9e8c5e4520",
-    "package-lock.json": "5c02798c1e907cc9ee38cd238212ba3ac2ee5f8e5d38e9884a8409bc5e033ae4",
-    "package.json": "4fe9e7b8ec644aa803fc54fc5bade9b988478a27926aa3e4b24f37ef339ba802",
+    "package-lock.json": "b5355e73aca8f017d7462bb90efce50f8e62f7c2fa1bf06cad5ad314d6e77198",
+    "package.json": "a41119ad0cf480c098d6cec3aee35d447de6249359f9bcfd054f001939c6f788",
     "rcon-firewall-sperren.bat": "a938801b1c2944ba79f0a7c609ab4472138c240f97ca930fa08f04e6fad8cbec",
     "server-startskript/start-mit-neustart.bat": "b55552a66b4d851e8cddb3c33da193a7de2628eba5a4abcdef5e746d9e4879af",
     "src/commands.js": "25be004ced2d37a90ce36c85b832864a0fd08c054d30ed281a5175065ff3123d",
@@ -25,7 +25,7 @@
     "src/rcon.js": "03706890ad8ba94fef6554cfe54577a61f20144dd2adce8c6fd1098cfae54cc7",
     "src/restart.js": "b9a6f80b49361550c6cafd3012f621a8f0c0cbf8698bf4af3e57fb05a2dc05c0",
     "src/state.js": "3e666e5ab68d1cb20c87ada41eedbc4896480de1a3b06ca8f3d8e7afd54b3480",
-    "src/updater.js": "98f86d8c0726b741dcb2a25c9f4cfec741b850b6354f21ff1a4b9518bddd8afb",
+    "src/updater.js": "c25fc5b6d5fc2d59c920dfc02af40979e92f6d79d73cb5ce19bdffc27b614e9d",
     "start-bot.bat": "aed81a13763ca7bce445eb15043213c2e28d2e6370c915e68d7f20d810a0e18c"
   }
 }
