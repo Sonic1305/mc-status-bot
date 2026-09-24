@@ -305,3 +305,7 @@ npm start                # wie start-bot.bat, aber ohne Neustart-Schleife
 ```
 
 `src/index.js` Ablauf & Discord · `src/restart.js` Neustart-Ablauf · `src/updater.js` Auto-Update · `tools/release.js` Release-Skript · `src/monitor.js` Abfrage & Parser · `src/rcon.js` RCON-Client · `src/ping.js` Status-Ping · `src/embed.js` Nachricht · `src/commands.js` Slash-Befehle · `src/state.js` Speicherstand
+
+## Lizenz
+
+[MIT](LICENSE) – frei nutzbar, veränderbar und weitergebbar, solange der Copyright-Hinweis erhalten bleibt. Ohne Gewähr.
