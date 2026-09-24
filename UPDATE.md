@@ -2,9 +2,9 @@
 
 ## Für den Hoster (Mensch)
 
-1. Das Zip `mc-status-bot-v1.2.0.zip` in den **Bot-Ordner** legen (dort, wo `start-bot.bat` und `.env` liegen).
+1. Das Zip `mc-status-bot-v1.2.x.zip` (z. B. `mc-status-bot-v1.2.1.zip`) in den **Bot-Ordner** legen (dort, wo `start-bot.bat` und `.env` liegen).
 2. Claude Code in diesem Ordner öffnen und sagen:
-   **„Lies die UPDATE.md aus mc-status-bot-v1.2.0.zip und spiel das Update ein.“**
+   **„Lies die UPDATE.md aus dem Zip mc-status-bot-v1.2.x.zip und spiel das Update ein.“**
 
 Deine `.env` und `state.json` bleiben erhalten – das Zip enthält sie nicht.
 
@@ -53,10 +53,10 @@ Kontrolle: Beide Abfragen ohne `Stop-Process` erneut ausführen – es darf nich
 ### Schritt 4 – Dateien einspielen
 
 ```powershell
-Expand-Archive -Path "$bot\mc-status-bot-v1.2.0.zip" -DestinationPath $bot -Force
+Expand-Archive -Path (Get-ChildItem "$bot\mc-status-bot-v*.zip" | Sort-Object LastWriteTime | Select-Object -Last 1).FullName -DestinationPath $bot -Force
 ```
 
-Das Zip enthält die Dateien direkt (ohne Unterordner). Danach muss `package.json` `"version": "1.2.0"` enthalten und `src\updater.js` existieren. Dann:
+Das Zip enthält die Dateien direkt (ohne Unterordner). Danach muss `package.json` eine Version **1.2.1 oder höher** enthalten und `src\updater.js` existieren. Dann:
 
 ```powershell
 npm install --omit=dev --no-audit --no-fund
@@ -85,7 +85,7 @@ Start-Process -FilePath "$bot\start-bot.bat" -WorkingDirectory $bot -WindowStyle
 Nach ca. 20 Sekunden `logs\bot.log` prüfen. Erwartet:
 
 ```
-INFO   Minecraft Status-Bot v1.2.0 startet …
+INFO   Minecraft Status-Bot v1.2.x startet …
 INFO   Bei Discord angemeldet als <Botname>.
 INFO   /server neustart erlaubt für: <Name> (<ID>).
 INFO   Auto-Update aktiv: prüft github.com/<repo> alle 6 h.      (oder: "Auto-Update ist ausgeschaltet")
@@ -95,6 +95,6 @@ INFO   Server läuft weiterhin.        (oder: "Server ist online.")
 ### Schritt 7 – Rückmeldung an den Nutzer
 
 Kurz zusammenfassen (für den Bot-Besitzer):
-- Update auf v1.2.0 eingespielt, Testergebnis, relevante Log-Zeilen (ohne Geheimnisse)
+- Update eingespielt (Version aus `package.json`), Testergebnis, relevante Log-Zeilen (ohne Geheimnisse)
 - Auto-Update: an oder aus (auf Wunsch des Hosters)
 - Startskript im Serverordner: vorhanden / neu eingerichtet / ausstehend; ob der Server schon darüber läuft

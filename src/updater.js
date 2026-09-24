@@ -25,9 +25,10 @@ export const EXIT_UPDATE_INSTALLED = 3;
 export const MANIFEST_FILE = 'release-manifest.json';
 
 const REQUIRED_FILES = ['src/index.js', 'package.json', 'start-bot.bat'];
-const PROTECTED_PATHS = [/^\.env$/i, /^\.env\./i, /^state\.json/i, /^logs\//i, /^node_modules\//i, /^update\//i, /^\.git\//i];
-// Nur einfache Pfade: keine Leerzeichen, keine "..", keine Laufwerke – die Pfade landen auch in rollback.bat.
-const SAFE_PATH = /^[A-Za-z0-9_-][A-Za-z0-9._-]*(\/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$/;
+// .env und Varianten wie .env.local sind tabu – nur die Vorlage .env.example darf aktualisiert werden.
+const PROTECTED_PATHS = [/^\.env(\.(?!example$)[^/]*)?$/i, /^state\.json/i, /^logs\//i, /^node_modules\//i, /^update\//i, /^\.git(\/|$)/i];
+// Nur einfache Pfade: keine Leerzeichen, keine Laufwerke, keine "."/".."-Segmente – die Pfade landen auch in rollback.bat.
+const SAFE_PATH = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 const VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)$/;
 const DOWNLOAD_TIMEOUT_MS = 30_000;
 const NPM_TIMEOUT_MS = 5 * 60 * 1000;
@@ -52,7 +53,9 @@ export function compareVersions(a, b) {
 export const sha256 = (buffer) => createHash('sha256').update(buffer).digest('hex');
 
 export function isSafeUpdatePath(p) {
-  return SAFE_PATH.test(p) && !p.split('/').includes('..') && !PROTECTED_PATHS.some((re) => re.test(p));
+  return SAFE_PATH.test(p)
+    && !p.split('/').some((segment) => segment === '.' || segment === '..')
+    && !PROTECTED_PATHS.some((re) => re.test(p));
 }
 
 export function validateManifest(manifest, expectedVersion, nodeVersion = process.versions.node) {

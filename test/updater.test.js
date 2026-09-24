@@ -67,8 +67,11 @@ const NEW_FILES = {
 test('Versionen und Pfade', () => {
   assert.ok(compareVersions('1.10.0', '1.9.9') > 0);
   assert.equal(compareVersions('v1.2.0', '1.2.0'), 0);
-  assert.ok(isSafeUpdatePath('src/index.js'));
-  for (const bad of ['../evil.js', 'src/../../x', '.env', 'state.json', 'node_modules/x/y.js', 'update/rollback.bat', 'C:/x', 'a b.js', '/abs.js']) {
+  for (const good of ['src/index.js', '.env.example', 'server-startskript/start-mit-neustart.bat', 'README.md']) {
+    assert.ok(isSafeUpdatePath(good), good);
+  }
+  for (const bad of ['../evil.js', 'src/../../x', './x.js', 'src/./x.js', '.env', '.env.local', '.ENV', 'state.json', 'node_modules/x/y.js',
+    'update/rollback.bat', '.git/config', 'C:/x', 'a b.js', '/abs.js', 'src\\x.js']) {
     assert.equal(isSafeUpdatePath(bad), false, bad);
   }
 });

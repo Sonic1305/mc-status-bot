@@ -128,7 +128,7 @@ node --env-file=.env src/index.js
 Das Log sollte ungefähr so aussehen:
 
 ```
-INFO   Minecraft Status-Bot v1.2.0 startet …
+INFO   Minecraft Status-Bot v1.2.x startet …
 INFO   Bei Discord angemeldet als <Botname>.
 INFO   /server neustart erlaubt für: <Name> (<ID>).
 INFO   Frage 127.0.0.1:25565 alle 15 s ab (RCON-Port 25575).

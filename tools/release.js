@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateManifest } from '../src/updater.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MANIFEST_FILE = 'release-manifest.json';
@@ -83,8 +84,15 @@ const manifest = {
   createdAt: new Date().toISOString(),
   files: Object.fromEntries(files.map((f) => [f, sha256(f)])),
 };
+// Mit derselben Prüfung wie der Updater auf den Host-PCs – sonst könnten die Bots das Release nicht installieren.
+try {
+  validateManifest(manifest, version);
+} catch (err) {
+  run('git', ['checkout', '--', 'package.json', 'package-lock.json']);
+  fail(`Der Updater würde dieses Release ablehnen: ${err.message}`);
+}
 fs.writeFileSync(path.join(ROOT, MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`▶ Manifest: ${files.length} Dateien`);
+console.log(`▶ Manifest: ${files.length} Dateien (vom Updater akzeptiert)`);
 
 // 5. Commit, Tag, Push, Release
 run('git', ['add', 'package.json', 'package-lock.json', MANIFEST_FILE]);
