@@ -6,7 +6,7 @@ A Discord bot that keeps **one live message** in a channel up to date with the s
 
 - 🟢 / 🟡 / 🔴 status, player count and **all player names**, TPS, version, uptime, daily and all-time player record, connection info (e.g. Radmin VPN)
 - Bot presence shows the player count in the member list
-- Optional alerts: server down (after 10 min) / back up with role ping, lag warning, new player record
+- Optional alerts: server down (after 10 min) / back up with role ping, new player record
 - `/server neustart`: the bot owner restarts the server from Discord, with an in-game countdown
 - Updates itself from GitHub releases and rolls back automatically if a new version fails to start
 
@@ -43,7 +43,6 @@ Setting it up on someone else's PC with Claude Code? See [INSTALL.md](INSTALL.md
 | `POLL_INTERVAL_SECONDS` / `HEARTBEAT_SECONDS` | `15` / `60` | Query interval / forced refresh |
 | `OFFLINE_AFTER_FAILS` | `3` | Failed queries in a row before "offline" |
 | `OFFLINE_ALERT_MINUTES` | `10` | Delay before the "offline" alert (0 = immediately) |
-| `TPS_ALERT_THRESHOLD` / `TPS_ALERT_SECONDS` | `15` / `120` | Lag warning |
 | `OWNER_IDS` | owner of the Discord app | Discord user IDs allowed to use `/server` |
 | `RESTART_SCRIPT_NAME` | `start-mit-neustart.bat` | Restart script in the server folder |
 | `RESTART_TIMEOUT_MINUTES` / `RESTART_COOLDOWN_MINUTES` | `10` / `5` | Alert if not back / min. gap between restarts |

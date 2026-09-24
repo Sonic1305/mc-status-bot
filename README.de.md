@@ -6,7 +6,7 @@ Ein Discord-Bot, der **eine Live-Nachricht** in einem Channel mit dem Status eur
 
 - 🟢 / 🟡 / 🔴 Status, Spielerzahl und **alle Spielernamen**, TPS, Version, „Online seit“, Tages- und Allzeit-Rekord, Verbindungsdaten (z. B. Radmin VPN)
 - Bot-Status zeigt die Spielerzahl in der Mitgliederliste
-- Optionale Meldungen: Server offline (nach 10 Min.) / wieder online mit Rollen-Ping, Lag-Warnung, neuer Spielerrekord
+- Optionale Meldungen: Server offline (nach 10 Min.) / wieder online mit Rollen-Ping, neuer Spielerrekord
 - `/server neustart`: Der Bot-Besitzer startet den Server per Discord neu, mit Countdown im Spiel
 - Aktualisiert sich selbst über GitHub-Releases und rollt automatisch zurück, wenn eine neue Version nicht startet
 
@@ -43,7 +43,6 @@ Einrichtung auf einem fremden PC mit Claude Code? Siehe [INSTALL.de.md](INSTALL.
 | `POLL_INTERVAL_SECONDS` / `HEARTBEAT_SECONDS` | `15` / `60` | Abfrage-Intervall / erzwungene Aktualisierung |
 | `OFFLINE_AFTER_FAILS` | `3` | Fehlgeschlagene Abfragen am Stück bis „offline“ |
 | `OFFLINE_ALERT_MINUTES` | `10` | Verzögerung der Offline-Meldung (0 = sofort) |
-| `TPS_ALERT_THRESHOLD` / `TPS_ALERT_SECONDS` | `15` / `120` | Lag-Warnung |
 | `OWNER_IDS` | Besitzer der Discord-App | Discord-User-IDs, die `/server` nutzen dürfen |
 | `RESTART_SCRIPT_NAME` | `start-mit-neustart.bat` | Neustart-Skript im Serverordner |
 | `RESTART_TIMEOUT_MINUTES` / `RESTART_COOLDOWN_MINUTES` | `10` / `5` | Warnung, wenn nicht zurück / Mindestabstand zwischen Neustarts |

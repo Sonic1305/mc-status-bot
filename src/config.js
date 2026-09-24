@@ -86,8 +86,6 @@ export const config = {
   heartbeatSec: num('HEARTBEAT_SECONDS', 60, { min: 30, max: 3600 }),
   offlineAfterFails: num('OFFLINE_AFTER_FAILS', 3, { min: 1, max: 20 }),
 
-  tpsAlertThreshold: num('TPS_ALERT_THRESHOLD', 15, { min: 1, max: 20, integer: false }),
-  tpsAlertSeconds: num('TPS_ALERT_SECONDS', 120, { min: 15, max: 3600 }),
   offlineAlertMinutes: num('OFFLINE_ALERT_MINUTES', 10, { min: 0, max: 240 }),
   timezone: timezone('TIMEZONE', 'Europe/Berlin'),
 

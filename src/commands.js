@@ -39,7 +39,7 @@ export const commandData = [
         .setRequired(true)))
     .addSubcommand((sub) => sub
       .setName('alarm')
-      .setDescription('Meldungen bei Offline/Online, Lag und neuem Spielerrekord in einen Channel schicken.')
+      .setDescription('Meldungen bei Offline/Online und neuem Spielerrekord in einen Channel schicken.')
       .addChannelOption((opt) => opt
         .setName('kanal')
         .setDescription('Channel für die Meldungen')

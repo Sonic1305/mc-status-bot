@@ -43,7 +43,6 @@ let lastEditAt = 0;
 let lastPresenceKey = null;
 let lastPublishError = null;
 let ownerIds = [...config.ownerIds];
-const tpsWatch = { lowSince: null, alerted: false };
 
 const save = () => {
   try {
@@ -294,31 +293,6 @@ async function pollOnce() {
         alerts.push({ text: `🎉 **Neuer Spielerrekord:** ${snapshot.online} Spieler gleichzeitig online!` });
       }
     }
-  }
-
-  // Lag-Warnung
-  if (snapshot.status === 'online' && snapshot.tps != null) {
-    const threshold = config.tpsAlertThreshold;
-    if (snapshot.tps < threshold) {
-      tpsWatch.lowSince ??= now;
-      if (!tpsWatch.alerted && now - tpsWatch.lowSince >= config.tpsAlertSeconds * 1000) {
-        tpsWatch.alerted = true;
-        const minutes = Math.round(config.tpsAlertSeconds / 60) || 1;
-        alerts.push({
-          text: `⚠️ **Server laggt:** TPS seit über ${minutes} Min. unter ${threshold} `
-            + `(aktuell ${snapshot.tps.toFixed(1)} TPS, ${Math.round(snapshot.mspt ?? 0)} ms/Tick).`,
-        });
-      }
-    } else {
-      tpsWatch.lowSince = null;
-      if (tpsWatch.alerted && snapshot.tps >= Math.min(threshold + 2, 19.5)) {
-        tpsWatch.alerted = false;
-        alerts.push({ text: `✅ TPS wieder normal (${snapshot.tps.toFixed(1)}).` });
-      }
-    }
-  } else if (!up) {
-    tpsWatch.lowSince = null;
-    tpsWatch.alerted = false;
   }
 
   save();
