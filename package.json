@@ -1,6 +1,6 @@
 {
   "name": "mc-status-bot",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "private": true,
   "description": "Discord-Bot, der den Live-Status eines Minecraft-Servers in einer Discord-Nachricht anzeigt.",
   "license": "MIT",
