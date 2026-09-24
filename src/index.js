@@ -16,6 +16,7 @@ import { Monitor } from './monitor.js';
 import { RestartManager } from './restart.js';
 import { RestartScheduler } from './schedule.js';
 import { loadState, saveState } from './state.js';
+import { correctedOnlineSince, getListeningProcessStart } from './uptime.js';
 import { EXIT_UPDATE_INSTALLED, Updater } from './updater.js';
 
 // Exit-Code 2 = Konfigurationsfehler: start-bot.bat startet dann nicht endlos neu.
@@ -43,6 +44,8 @@ let lastSignature = null;
 let lastEditAt = 0;
 let lastPresenceKey = null;
 let lastPublishError = null;
+let lastUptimeCheck = 0;
+const UPTIME_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 let ownerIds = [...config.ownerIds];
 
 const save = () => {
@@ -287,6 +290,17 @@ async function pollOnce() {
     const who = state.offlinePlayers?.length ? ` Zuletzt online: ${state.offlinePlayers.map(escapeMarkdown).join(', ')}` : '';
     alerts.push({ text: `🔴 **${config.serverName} ist ${since}offline.**${who}`, ping: true });
   }
+  // "Online seit" mit der Startzeit des Serverprozesses abgleichen (beim Bot-Start und alle 10 Min.)
+  if (up && !state.restart && now - lastUptimeCheck >= UPTIME_CHECK_INTERVAL_MS) {
+    lastUptimeCheck = now;
+    const processStart = await getListeningProcessStart(config.mcPort, { host: config.mcHost });
+    const corrected = correctedOnlineSince(state.onlineSince, processStart);
+    if (corrected) {
+      log.info(`"Online seit" korrigiert: Serverprozess läuft seit ${new Date(corrected).toLocaleString('de-DE', { timeZone: config.timezone })}.`);
+      state.onlineSince = corrected;
+    }
+  }
+
   state.lastStatus = up ? 'online' : 'offline';
   state.stoppedAt = null;
 
