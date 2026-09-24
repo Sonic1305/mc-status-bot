@@ -14,6 +14,7 @@ import { buildStatusEmbed, buildStoppedEmbed, presenceFor, statusSignature } fro
 import { log } from './log.js';
 import { Monitor } from './monitor.js';
 import { RestartManager } from './restart.js';
+import { RestartScheduler } from './schedule.js';
 import { loadState, saveState } from './state.js';
 import { EXIT_UPDATE_INSTALLED, Updater } from './updater.js';
 
@@ -61,6 +62,14 @@ const restartManager = new RestartManager({
   refresh: () => refreshStatus(true),
 });
 restartManager.recoverAfterBotStart();
+
+const scheduler = new RestartScheduler({
+  config,
+  state,
+  save,
+  restartManager,
+  notify: (alert) => { sendAlert(alert); },
+});
 
 let healthConfirmed = false;
 const updater = new Updater({
@@ -160,7 +169,7 @@ async function refreshStatus(force = false) {
   if (!due) return null;
 
   try {
-    await runExclusive(() => publishNow(buildStatusEmbed({ snapshot, state, config, now })));
+    await runExclusive(() => publishNow(buildStatusEmbed({ snapshot, state, config, now, nextRestart: scheduler.upcoming })));
     lastSignature = signature;
     lastEditAt = now;
     if (lastPublishError) {
@@ -375,6 +384,7 @@ client.once(Events.ClientReady, async (readyClient) => {
     });
   }
   updater.start();
+  scheduler.start();
   tick();
 });
 
@@ -402,6 +412,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       restart: restartManager,
       updater,
       onUpdateInstalled: restartForUpdate,
+      getNextRestart: () => scheduler.upcoming,
       rconEnabled: monitor.rconEnabled,
       moveStatusMessage,
       refreshStatus: () => refreshStatus(true),
@@ -423,6 +434,7 @@ async function shutdown(signal, exitCode = 0) {
   shuttingDown = true;
   clearTimeout(pollTimer);
   updater.stop();
+  scheduler.stop();
   log.info(`Beende Bot (${signal}) …`);
   // Windows gibt beim Schließen des Fensters nur wenige Sekunden Zeit.
   setTimeout(() => process.exit(exitCode), 4000);

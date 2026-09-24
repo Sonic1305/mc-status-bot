@@ -216,7 +216,7 @@ export async function handleCommand(interaction, ctx) {
 
   if (interaction.commandName === 'status') {
     await interaction.reply({
-      embeds: [buildStatusEmbed({ snapshot: ctx.getSnapshot(), state: ctx.state, config: ctx.config })],
+      embeds: [buildStatusEmbed({ snapshot: ctx.getSnapshot(), state: ctx.state, config: ctx.config, nextRestart: ctx.getNextRestart() })],
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -311,6 +311,10 @@ export async function handleCommand(interaction, ctx) {
       `**Takt:** Abfrage alle ${config.pollIntervalSec} s · Nachricht spätestens alle ${config.heartbeatSec} s neu`,
       `**Offline-Meldung:** ${config.offlineAlertMinutes ? `nach ${config.offlineAlertMinutes} Min. Ausfall` : 'sofort'}`,
       `**Neustart erlaubt für:** ${ctx.ownerIds().length ? ctx.ownerIds().map((id) => `<@${id}>`).join(', ') : '— (Besitzer noch nicht ermittelt)'} · Startskript \`${config.restartScriptName}\``,
+      `**Geplante Neustarts:** ${config.restartSchedule.length
+        ? `täglich ${config.restartSchedule.map((t) => t.label).join(', ')} (${config.restartScheduleCountdown} Min. Vorwarnung)`
+          + (ctx.getNextRestart() ? ` · nächster ${discordTime(ctx.getNextRestart().at)}` : '')
+        : 'aus (`RESTART_SCHEDULE`)'}`,
     ];
     await interaction.editReply({ content: lines.join('\n'), allowedMentions: { parse: [] } });
   }

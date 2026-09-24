@@ -8,6 +8,7 @@ Ein Discord-Bot, der **eine Live-Nachricht** in einem Channel mit dem Status eur
 - Bot-Status zeigt die Spielerzahl in der Mitgliederliste
 - Optionale Meldungen: Server offline (nach 10 Min.) / wieder online mit Rollen-Ping, neuer Spielerrekord
 - `/server neustart`: Der Bot-Besitzer startet den Server per Discord neu, mit Countdown im Spiel
+- Geplante tägliche Neustarts (`RESTART_SCHEDULE`) mit Countdown im Spiel – ohne Meldungen, außer es geht etwas schief
 - Aktualisiert sich selbst über GitHub-Releases und rollt automatisch zurück, wenn eine neue Version nicht startet
 
 ## So funktioniert es
@@ -46,6 +47,7 @@ Einrichtung auf einem fremden PC mit Claude Code? Siehe [INSTALL.de.md](INSTALL.
 | `OWNER_IDS` | Besitzer der Discord-App | Discord-User-IDs, die `/server` nutzen dürfen |
 | `RESTART_SCRIPT_NAME` | `start-mit-neustart.bat` | Neustart-Skript im Serverordner |
 | `RESTART_TIMEOUT_MINUTES` / `RESTART_COOLDOWN_MINUTES` | `10` / `5` | Warnung, wenn nicht zurück / Mindestabstand zwischen Neustarts |
+| `RESTART_SCHEDULE` / `RESTART_SCHEDULE_COUNTDOWN_MINUTES` | aus / `5` | Tägliche Neustart-Zeiten, z. B. `"04:00,16:00"` (in `TIMEZONE`) / Countdown davor. Wird ausgelassen, wenn der Server erst < 30 Min. läuft oder das Neustart-Skript nicht läuft. Ersetzt einen Neustart über die Windows-Aufgabenplanung – nicht beides nutzen |
 | `AUTO_UPDATE` / `UPDATE_CHECK_HOURS` | `true` / `6` | Neue Releases automatisch installieren |
 | `UPDATE_REPO` | aus `package.json` | GitHub-Repo für Updates |
 | `TIMEZONE` | `Europe/Berlin` | Tageswechsel für den Tagesrekord |

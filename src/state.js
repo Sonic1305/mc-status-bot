@@ -20,6 +20,7 @@ const DEFAULTS = {
   record: { count: 0, at: null },
   restart: null, // laufender Neustart, siehe restart.js
   lastRestartAt: null,
+  lastScheduledSlot: null, // zuletzt behandelter geplanter Neustart, z. B. "2026-09-25 04:00"
 };
 
 let lastWritten = null;

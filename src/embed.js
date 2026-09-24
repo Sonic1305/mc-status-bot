@@ -59,7 +59,8 @@ function updatedField(config, now) {
   };
 }
 
-export function buildStatusEmbed({ snapshot, state, config, now = Date.now() }) {
+/** nextRestart: nächster geplanter Neustart ({ at }) oder null */
+export function buildStatusEmbed({ snapshot, state, config, now = Date.now(), nextRestart = null }) {
   const embed = new EmbedBuilder().setTimestamp(now);
   const name = config.serverName;
   const version = config.versionText || snapshot.version;
@@ -110,6 +111,13 @@ export function buildStatusEmbed({ snapshot, state, config, now = Date.now() }) 
   if (state.onlineSince) fields.push({ name: '⏱️ Online seit', value: discordTime(state.onlineSince), inline: true });
   if (version) fields.push({ name: '📦 Version', value: escapeMarkdown(version), inline: true });
   fields.push(recordField(state));
+  if (nextRestart && config.restartSchedule?.length) {
+    fields.push({
+      name: '🔄 Täglicher Neustart',
+      value: `${config.restartSchedule.map((t) => t.label).join(', ')} · nächster ${discordTime(nextRestart.at)}`,
+      inline: true,
+    });
+  }
   const connect = connectField(config);
   if (connect) fields.push(connect);
   fields.push(updatedField(config, now));

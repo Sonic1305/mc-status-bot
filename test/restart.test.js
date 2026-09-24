@@ -143,7 +143,7 @@ test('Kein Neustart ohne RCON, bei eingeschränktem Server oder doppelt', () => 
   assert.match(setup({ status: 'degraded' }).manager.checkAllowed(), /nicht \(voll\) erreichbar/);
   assert.match(setup({ status: 'offline' }).manager.checkAllowed(), /nicht \(voll\) erreichbar/);
   const { manager } = setup();
-  assert.equal(manager.start({ minutes: 7, userId: '1', userName: 'x' }), 'Ungültiger Countdown.');
+  assert.equal(manager.start({ minutes: 31, userId: '1', userName: 'x' }), 'Ungültiger Countdown.');
   manager.start({ minutes: 10, userId: '1', userName: 'x' });
   assert.match(manager.checkAllowed(), /bereits ein Neustart geplant/);
   manager.abortOnShutdown();

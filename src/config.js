@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { parseSchedule } from './schedule.js';
 
 // Liest die Einstellungen aus der .env (Node lädt sie über --env-file).
 const env = process.env;
@@ -56,6 +57,15 @@ function repoSlug(name, fallback) {
   return value;
 }
 
+function schedule(name) {
+  try {
+    return parseSchedule(str(name));
+  } catch (err) {
+    problems.push(`${name}: ${err.message} (Beispiel: "04:00" oder "04:00,16:00").`);
+    return [];
+  }
+}
+
 function timezone(name, fallback) {
   const tz = str(name, fallback);
   try {
@@ -94,6 +104,8 @@ export const config = {
   restartScriptName: scriptName('RESTART_SCRIPT_NAME', 'start-mit-neustart.bat'),
   restartTimeoutMinutes: num('RESTART_TIMEOUT_MINUTES', 10, { min: 3, max: 60 }),
   restartCooldownMinutes: num('RESTART_COOLDOWN_MINUTES', 5, { min: 0, max: 120 }),
+  restartSchedule: schedule('RESTART_SCHEDULE'), // leer = keine geplanten Neustarts
+  restartScheduleCountdown: num('RESTART_SCHEDULE_COUNTDOWN_MINUTES', 5, { min: 0, max: 30 }),
 
   // Auto-Update von GitHub
   version: pkg.version,

@@ -8,7 +8,8 @@ import { log } from './log.js';
 //                 startet ihn neu; der Bot wartet, bis er wieder online ist
 // Der Bot startet den Server nie selbst – er schickt nur "stop".
 
-export const COUNTDOWN_CHOICES = [0, 1, 5, 10];
+export const COUNTDOWN_CHOICES = [0, 1, 5, 10]; // Auswahl bei /server neustart
+export const MAX_COUNTDOWN_MINUTES = 30;
 const ANNOUNCE_AT_SECONDS = [600, 300, 120, 60, 30, 10, 5, 4, 3, 2, 1];
 const INSTANT_DELAY_MS = 5000;
 // So lange darf das Herunterfahren (Speichern mit vielen Mods) dauern, bevor es als fehlgeschlagen gilt.
@@ -95,9 +96,12 @@ export class RestartManager {
     return null;
   }
 
-  /** Plant einen Neustart. Liefert eine Fehlermeldung oder null. */
-  start({ minutes, userId, userName }) {
-    if (!COUNTDOWN_CHOICES.includes(minutes)) return 'Ungültiger Countdown.';
+  /**
+   * Plant einen Neustart. Liefert eine Fehlermeldung oder null.
+   * quiet: keine Meldungen im Channel bei Start und Erfolg (geplante Neustarts) – Fehler werden trotzdem gemeldet.
+   */
+  start({ minutes, userId, userName, quiet = false }) {
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes > MAX_COUNTDOWN_MINUTES) return 'Ungültiger Countdown.';
     const blocked = this.checkAllowed();
     if (blocked) return blocked;
 
@@ -105,10 +109,10 @@ export class RestartManager {
     const totalSeconds = minutes * 60;
     const stopAt = now + (totalSeconds > 0 ? totalSeconds * 1000 : INSTANT_DELAY_MS);
     this.state.restart = {
-      phase: 'countdown', byId: userId, byName: userName, requestedAt: now, stopAt, stopSentAt: null, sawDown: false,
+      phase: 'countdown', byId: userId, byName: userName, requestedAt: now, stopAt, stopSentAt: null, sawDown: false, quiet,
     };
     this.save();
-    log.info(`Neustart angefordert von ${userName} (${userId}) – ${minutes ? `in ${minutes} Min.` : 'sofort'}.`);
+    log.info(`Neustart angefordert von ${userName}${userId ? ` (${userId})` : ''} – ${minutes ? `in ${minutes} Min.` : 'sofort'}.`);
 
     if (totalSeconds === 0) this.#say(announcementText(0));
     for (const seconds of announcementSchedule(totalSeconds)) {
@@ -118,12 +122,14 @@ export class RestartManager {
     }
     this.#schedule(stopAt - now, () => this.#sendStop());
 
-    const who = escapeMarkdown(userName);
-    this.notify({
-      text: minutes
-        ? `🔄 **Neustart geplant** von ${who}: ${this.config.serverName} startet <t:${unixSeconds(stopAt)}:R> neu.`
-        : `🔄 **${this.config.serverName} wird jetzt neu gestartet** (ausgelöst von ${who}).`,
-    });
+    if (!quiet) {
+      const who = escapeMarkdown(userName);
+      this.notify({
+        text: minutes
+          ? `🔄 **Neustart geplant** von ${who}: ${this.config.serverName} startet <t:${unixSeconds(stopAt)}:R> neu.`
+          : `🔄 **${this.config.serverName} wird jetzt neu gestartet** (ausgelöst von ${who}).`,
+      });
+    }
     this.refresh();
     return null;
   }
@@ -183,7 +189,9 @@ export class RestartManager {
       this.state.restart = null;
       this.state.lastRestartAt = now;
       log.info(`Neustart abgeschlossen nach ${formatDuration(now - restart.stopSentAt)}.`);
-      this.notify({ text: `🟢 **${name} ist nach dem Neustart wieder online** (Dauer ${formatDuration(now - restart.stopSentAt)}).` });
+      if (!restart.quiet) {
+        this.notify({ text: `🟢 **${name} ist nach dem Neustart wieder online** (Dauer ${formatDuration(now - restart.stopSentAt)}).` });
+      }
     } else if (now - restart.stopSentAt >= SHUTDOWN_TIMEOUT_MS) {
       this.state.restart = null;
       log.warn('Neustart fehlgeschlagen: Der Server läuft nach "stop" immer noch.');

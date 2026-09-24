@@ -8,6 +8,7 @@ A Discord bot that keeps **one live message** in a channel up to date with the s
 - Bot presence shows the player count in the member list
 - Optional alerts: server down (after 10 min) / back up with role ping, new player record
 - `/server neustart`: the bot owner restarts the server from Discord, with an in-game countdown
+- Scheduled daily restarts (`RESTART_SCHEDULE`) with in-game countdown – quiet unless something goes wrong
 - Updates itself from GitHub releases and rolls back automatically if a new version fails to start
 
 ## How it works
@@ -46,6 +47,7 @@ Setting it up on someone else's PC with Claude Code? See [INSTALL.md](INSTALL.md
 | `OWNER_IDS` | owner of the Discord app | Discord user IDs allowed to use `/server` |
 | `RESTART_SCRIPT_NAME` | `start-mit-neustart.bat` | Restart script in the server folder |
 | `RESTART_TIMEOUT_MINUTES` / `RESTART_COOLDOWN_MINUTES` | `10` / `5` | Alert if not back / min. gap between restarts |
+| `RESTART_SCHEDULE` / `RESTART_SCHEDULE_COUNTDOWN_MINUTES` | off / `5` | Daily restart times, e.g. `"04:00,16:00"` (in `TIMEZONE`) / countdown before. Skipped if the server started < 30 min ago or the restart script isn't running. Replaces a Windows Task Scheduler restart – don't use both |
 | `AUTO_UPDATE` / `UPDATE_CHECK_HOURS` | `true` / `6` | Install new releases automatically |
 | `UPDATE_REPO` | from `package.json` | GitHub repo for updates |
 | `TIMEZONE` | `Europe/Berlin` | Day boundary for the daily record |
