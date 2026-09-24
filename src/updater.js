@@ -52,6 +52,39 @@ export function compareVersions(a, b) {
 
 export const sha256 = (buffer) => createHash('sha256').update(buffer).digest('hex');
 
+// JSON mit sortierten Schlüsseln, damit der Fingerabdruck nicht von der Reihenfolge abhängt.
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Fingerabdruck der installierten Abhängigkeiten aus package-lock.json.
+ * Ignoriert Name, Version, Lizenz usw. des Bots selbst – die ändern sich bei jedem Release,
+ * ohne dass "npm ci" nötig wäre.
+ */
+export function dependencyFingerprint(lockText) {
+  const lock = JSON.parse(lockText);
+  const { '': root = {}, ...packages } = lock.packages ?? {};
+  return sha256(stableStringify({
+    lockfileVersion: lock.lockfileVersion,
+    dependencies: root.dependencies ?? {},
+    optionalDependencies: root.optionalDependencies ?? {},
+    packages,
+  }));
+}
+
+function safeDependencyFingerprint(lockText) {
+  try {
+    return dependencyFingerprint(lockText);
+  } catch {
+    return null; // unlesbar -> gilt als geändert
+  }
+}
+
 export function isSafeUpdatePath(p) {
   return SAFE_PATH.test(p)
     && !p.split('/').some((segment) => segment === '.' || segment === '..')
@@ -68,6 +101,9 @@ export function validateManifest(manifest, expectedVersion, nodeVersion = proces
   for (const [file, hash] of Object.entries(manifest.files)) {
     if (!isSafeUpdatePath(file)) throw new Error(`Unzulässiger Pfad im Update: ${file}`);
     if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error(`Ungültige Prüfsumme für ${file}`);
+  }
+  if (manifest.depsHash !== undefined && !/^[a-f0-9]{64}$/.test(manifest.depsHash)) {
+    throw new Error('Update-Manifest enthält einen ungültigen depsHash.');
   }
   for (const file of REQUIRED_FILES) {
     if (!manifest.files[file]) throw new Error(`Update ist unvollständig: ${file} fehlt.`);
@@ -263,9 +299,13 @@ export class Updater {
         fs.writeFileSync(target, data);
       });
 
-      // 2. Abhängigkeiten
+      // 2. Abhängigkeiten – "npm ci" nur, wenn sich die installierten Pakete wirklich ändern.
+      // Neuere Manifeste enthalten depsHash (ohne die eigene Versionsnummer); ältere nur den Datei-Hash.
       const currentLock = path.join(this.rootDir, 'package-lock.json');
-      const lockChanged = !fs.existsSync(currentLock) || sha256(fs.readFileSync(currentLock)) !== manifest.files['package-lock.json'];
+      const lockChanged = !fs.existsSync(currentLock) || !fs.existsSync(path.join(this.rootDir, 'node_modules'))
+        || (manifest.depsHash
+          ? safeDependencyFingerprint(fs.readFileSync(currentLock, 'utf8')) !== manifest.depsHash
+          : sha256(fs.readFileSync(currentLock)) !== manifest.files['package-lock.json']);
       if (lockChanged && manifest.files['package-lock.json']) {
         log.info('Abhängigkeiten haben sich geändert – führe npm ci aus …');
         await this.npmCi(staging);

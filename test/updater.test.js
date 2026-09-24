@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { compareVersions, isSafeUpdatePath, sha256, Updater, validateManifest } from '../src/updater.js';
+import { compareVersions, dependencyFingerprint, isSafeUpdatePath, sha256, Updater, validateManifest } from '../src/updater.js';
 
 const REPO = 'tester/mc-status-bot';
 const config = { updateRepo: REPO, autoUpdate: true, updateCheckHours: 6 };
@@ -39,11 +39,12 @@ const read = (root, file) => fs.readFileSync(path.join(root, file), 'utf8');
 const exists = (root, file) => fs.existsSync(path.join(root, file));
 
 /** Simuliert GitHub (API + raw) für Release v1.3.0. */
-function fakeGitHub({ newFiles, tamper = {}, latestTag = 'v1.3.0' }) {
+function fakeGitHub({ newFiles, tamper = {}, latestTag = 'v1.3.0', depsHash }) {
   const manifest = {
     version: latestTag.slice(1),
     tag: latestTag,
     minNode: '20.6.0',
+    ...(depsHash ? { depsHash } : {}),
     files: Object.fromEntries(Object.entries(newFiles).map(([f, c]) => [f, sha256(Buffer.from(c))])),
   };
   const raw = `https://raw.githubusercontent.com/${REPO}/${latestTag}/`;
@@ -206,6 +207,59 @@ test('Gesund-Meldung entfernt Marker und Sperre', () => {
     assert.equal(exists(root, 'update/pending-healthcheck.json'), false);
     assert.equal(exists(root, 'update/skip-version.txt'), false);
     assert.equal(updater.confirmHealthy(), null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const lockJson = ({ version, lodash = '4.17.21', license }) => JSON.stringify({
+  name: 'mc-status-bot', version, lockfileVersion: 3, requires: true,
+  packages: {
+    '': { name: 'mc-status-bot', version, ...(license ? { license } : {}), dependencies: { lodash: `^${lodash}` } },
+    'node_modules/lodash': { version: lodash, resolved: `https://registry.npmjs.org/lodash/-/lodash-${lodash}.tgz` },
+  },
+}, null, 2);
+
+test('Abhängigkeits-Fingerabdruck ignoriert eigene Version und Lizenz, erkennt Paketänderungen', () => {
+  const base = dependencyFingerprint(lockJson({ version: '1.2.2' }));
+  assert.equal(dependencyFingerprint(lockJson({ version: '1.2.3', license: 'MIT' })), base);
+  assert.notEqual(dependencyFingerprint(lockJson({ version: '1.2.2', lodash: '4.17.22' })), base);
+  const reordered = JSON.parse(lockJson({ version: '1.2.2' }));
+  reordered.packages = Object.fromEntries(Object.entries(reordered.packages).reverse());
+  assert.equal(dependencyFingerprint(JSON.stringify(reordered)), base, 'Reihenfolge egal');
+});
+
+test('Nur Versionsnummer im Lockfile geändert: kein npm ci', async () => {
+  const root = makeRoot();
+  try {
+    fs.writeFileSync(path.join(root, 'package-lock.json'), lockJson({ version: '1.2.0' }));
+    const newLock = lockJson({ version: '1.3.0', license: 'MIT' });
+    const updater = new Updater({
+      config, currentVersion: '1.2.0', rootDir: root,
+      fetchImpl: fakeGitHub({ newFiles: { ...NEW_FILES, 'package-lock.json': newLock }, depsHash: dependencyFingerprint(newLock) }),
+      npmCi: async () => assert.fail('npm ci darf nicht laufen'),
+    });
+    assert.equal((await updater.checkAndInstall()).status, 'installed');
+    assert.equal(read(root, 'package-lock.json'), newLock);
+    assert.equal(read(root, 'node_modules/dep.txt'), 'alte Abhängigkeit', 'node_modules bleibt');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Pakete geändert (depsHash anders): npm ci läuft', async () => {
+  const root = makeRoot();
+  try {
+    fs.writeFileSync(path.join(root, 'package-lock.json'), lockJson({ version: '1.2.0' }));
+    const newLock = lockJson({ version: '1.3.0', lodash: '4.17.22' });
+    let ran = false;
+    const updater = new Updater({
+      config, currentVersion: '1.2.0', rootDir: root,
+      fetchImpl: fakeGitHub({ newFiles: { ...NEW_FILES, 'package-lock.json': newLock }, depsHash: dependencyFingerprint(newLock) }),
+      npmCi: async (dir) => { ran = true; fs.mkdirSync(path.join(dir, 'node_modules')); },
+    });
+    await updater.checkAndInstall();
+    assert.ok(ran);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

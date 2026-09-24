@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateManifest } from '../src/updater.js';
+import { dependencyFingerprint, validateManifest } from '../src/updater.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MANIFEST_FILE = 'release-manifest.json';
@@ -82,6 +82,8 @@ const manifest = {
   tag: `v${version}`,
   minNode: /^\d+\.\d+$/.test(minNode) ? `${minNode}.0` : minNode || undefined,
   createdAt: new Date().toISOString(),
+  // Damit die Bots "npm ci" nur ausführen, wenn sich die Pakete wirklich ändern.
+  depsHash: dependencyFingerprint(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8')),
   files: Object.fromEntries(files.map((f) => [f, sha256(f)])),
 };
 // Mit derselben Prüfung wie der Updater auf den Host-PCs – sonst könnten die Bots das Release nicht installieren.
