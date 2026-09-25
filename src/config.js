@@ -99,7 +99,7 @@ export const config = {
   offlineAlertMinutes: num('OFFLINE_ALERT_MINUTES', 10, { min: 0, max: 240 }),
   timezone: timezone('TIMEZONE', 'Europe/Berlin'),
 
-  // Neustart per /server neustart
+  // Neustart per /mc server neustart und Zeitplan
   ownerIds: idList('OWNER_IDS'), // leer = Besitzer der Discord-Application
   restartScriptName: scriptName('RESTART_SCRIPT_NAME', 'start-mit-neustart.bat'),
   restartTimeoutMinutes: num('RESTART_TIMEOUT_MINUTES', 10, { min: 3, max: 60 }),

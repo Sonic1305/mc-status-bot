@@ -14,7 +14,7 @@ import { getListeningProcess, isProcessAlive, killProcess } from './uptime.js';
 // den Serverprozess und beendet genau diesen hart, wenn er nach RESTART_KILL_AFTER_MINUTES
 // noch läuft. Das Startskript startet den Server danach normal neu.
 
-export const COUNTDOWN_CHOICES = [0, 1, 5, 10]; // Auswahl bei /server neustart
+export const COUNTDOWN_CHOICES = [0, 1, 5, 10]; // Auswahl bei /mc server neustart
 export const MAX_COUNTDOWN_MINUTES = 30;
 const ANNOUNCE_AT_SECONDS = [600, 300, 120, 60, 30, 10, 5, 4, 3, 2, 1];
 const INSTANT_DELAY_MS = 5000;
@@ -91,7 +91,7 @@ export class RestartManager {
     if (!this.monitor.rconEnabled) return 'Ohne RCON (RCON_PASSWORD in der .env) kann der Bot den Server nicht neu starten.';
     const restart = this.state.restart;
     if (restart?.phase === 'countdown') {
-      return `Es ist bereits ein Neustart geplant (<t:${unixSeconds(restart.stopAt)}:R>). Abbrechen mit \`/server neustart-abbrechen\`.`;
+      return `Es ist bereits ein Neustart geplant (<t:${unixSeconds(restart.stopAt)}:R>). Abbrechen mit \`/mc server neustart-abbrechen\`.`;
     }
     if (restart?.phase === 'restarting') return 'Der Server startet gerade neu.';
     if (this.monitor.snapshot.status !== 'online') {

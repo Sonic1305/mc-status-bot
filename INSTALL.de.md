@@ -64,7 +64,7 @@ In zwei Sätzen erklären, dass der Bot neue Versionen automatisch von GitHub in
 - **Nein:** `AUTO_UPDATE=false` an die `.env` anhängen.
 
 ### 5. Probelauf
-`node --env-file=.env src/index.js` ca. 40 s im Hintergrund laufen lassen, `logs\bot.log` lesen, dann beenden. Erwartet: `Bei Discord angemeldet`, `/server neustart erlaubt für`, `Auto-Update aktiv` (oder `ausgeschaltet`), `Server ist online`.
+`node --env-file=.env src/index.js` ca. 40 s im Hintergrund laufen lassen, `logs\bot.log` lesen, dann beenden. Erwartet: `Bei Discord angemeldet`, `Bot-Besitzer:`, `Auto-Update aktiv` (oder `ausgeschaltet`), `Server ist online`.
 - Einladungslink im Log → an den Nutzer für den Besitzer weitergeben.
 - `ECONNREFUSED` / `RCON-Passwort ist falsch` → zurück zu Schritt 3.
 - `DISCORD_TOKEN ist ungültig` → nicht selbst beheben; der Besitzer muss eine neue `.env` schicken.
@@ -76,7 +76,7 @@ Start-Process -FilePath "$bot\start-bot.bat" -WorkingDirectory $bot -WindowStyle
 ```
 Dem Nutzer sagen: Das minimierte Fenster „Minecraft Status-Bot“ muss offen bleiben.
 
-### 7. Neustart-Skript (für `/server neustart`)
+### 7. Neustart-Skript (für `/mc server neustart`)
 `server-startskript\start-mit-neustart.bat` in den Serverordner kopieren (vor dem Überschreiben fragen). Die `java …`-Zeile muss der aus der `run.bat` entsprechen – bei Abweichung nur diese Zeile ersetzen, CRLF-Zeilenenden beibehalten. Mit OK des Nutzers Verknüpfungen/Autostart von `run.bat` darauf umstellen. Dem Nutzer sagen: Server ab jetzt mit dieser Datei starten; nach einem Stopp innerhalb von 15 s `N` drücken, damit er aus bleibt. Der gerade laufende Server wechselt beim nächsten Neustart.
 
 **Geplante Neustarts:** In der Windows-Aufgabenplanung nach Aufgaben suchen, die den Server stoppen/starten (`run.bat`, `java`, `taskkill`, `mcrcon`), und sie dem Nutzer zeigen. Eine Aufgabe darf den Server nicht mehr *starten* (das macht das Neustart-Skript – sonst startet er doppelt). Will der Nutzer die geplanten Neustarts stattdessen vom Bot (Countdown im Spiel, sauberes Herunterfahren), die Aufgabe mit seinem OK deaktivieren und `RESTART_SCHEDULE="HH:MM"` in der `.env` setzen.

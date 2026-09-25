@@ -137,7 +137,7 @@ async function publishNow(embed) {
     channel = await client.channels.fetch(state.statusChannelId);
   } catch (err) {
     if (err.code === 10003) {
-      log.warn('Der Status-Channel wurde gelöscht – in Discord /statusbot setup erneut ausführen.');
+      log.warn('Der Status-Kanal wurde gelöscht – in Discord „/mc bot status-kanal“ erneut ausführen.');
       state.statusChannelId = null;
       state.statusMessageId = null;
       save();
@@ -249,7 +249,7 @@ async function pollOnce() {
   const up = snapshot.status === 'online' || snapshot.status === 'degraded';
   const alerts = [];
 
-  // Laufender Neustart per /server neustart (schickt seine Meldungen selbst)
+  // Laufender Neustart (/mc server neustart oder Zeitplan) – schickt seine Meldungen selbst
   await restartManager.onPoll(snapshot, now);
   const restarting = Boolean(state.restart);
 
@@ -346,7 +346,7 @@ async function registerCommands(guild) {
   }
 }
 
-/** Wer /server neustart ausführen darf: OWNER_IDS aus der .env, sonst der Besitzer der Discord-Application. */
+/** Bot-Besitzer (darf /mc server … und /mc bot update): OWNER_IDS aus der .env, sonst der Besitzer der Discord-Application. */
 async function resolveOwners(readyClient) {
   if (!config.ownerIds.length) {
     try {
@@ -361,7 +361,7 @@ async function resolveOwners(readyClient) {
   }
   if (ownerIds.length) {
     const names = await Promise.all(ownerIds.map((id) => readyClient.users.fetch(id).then((u) => u.tag, () => '?')));
-    log.info(`/server neustart erlaubt für: ${ownerIds.map((id, i) => `${names[i]} (${id})`).join(', ')}.`);
+    log.info(`Bot-Besitzer: ${ownerIds.map((id, i) => `${names[i]} (${id})`).join(', ')}.`);
   }
 }
 
@@ -385,7 +385,7 @@ client.once(Events.ClientReady, async (readyClient) => {
 
   await resolveOwners(readyClient);
   for (const guild of readyClient.guilds.cache.values()) await registerCommands(guild);
-  if (!state.statusChannelId) log.warn('Noch kein Status-Channel gesetzt – in Discord „/statusbot setup“ ausführen.');
+  if (!state.statusChannelId) log.warn('Noch kein Status-Kanal gesetzt – in Discord „/mc bot status-kanal“ ausführen.');
 
   log.info(`Frage ${config.mcHost}:${config.mcPort} alle ${config.pollIntervalSec} s ab${monitor.rconEnabled ? ` (RCON-Port ${config.rconPort})` : ' (nur Status-Ping)'}.`);
 

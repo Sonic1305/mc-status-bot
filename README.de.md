@@ -7,7 +7,7 @@ Ein Discord-Bot, der **eine Live-Nachricht** in einem Channel mit dem Status eur
 - 🟢 / 🟡 / 🔴 Status, Spielerzahl und **alle Spielernamen**, TPS, Version, „Online seit“, Tages- und Allzeit-Rekord, Verbindungsdaten (z. B. Radmin VPN)
 - Bot-Status zeigt die Spielerzahl in der Mitgliederliste
 - Optionale Meldungen: Server offline (nach 10 Min.) / wieder online mit Rollen-Ping, neuer Spielerrekord
-- `/server neustart`: Der Bot-Besitzer startet den Server per Discord neu, mit Countdown im Spiel
+- `/mc server neustart`: Der Bot-Besitzer startet den Server per Discord neu, mit Countdown im Spiel
 - Geplante tägliche Neustarts (`RESTART_SCHEDULE`) mit Countdown im Spiel – ohne Meldungen, außer es geht etwas schief
 - Aktualisiert sich selbst über GitHub-Releases und rollt automatisch zurück, wenn eine neue Version nicht startet
 
@@ -24,10 +24,10 @@ Voraussetzungen: Node.js 20.6+ ([LTS](https://nodejs.org)), RCON am Server aktiv
 3. **RCON:** In der `server.properties` `enable-rcon=true`, `rcon.port` und ein langes `rcon.password` setzen, Server neu starten.
 4. **Konfigurieren:** `.env` ausfüllen (siehe unten).
 5. **Starten:** `start-bot.bat` ausführen. Beim ersten Start erscheint ein Einladungslink – öffnen und den Bot zum Discord-Server hinzufügen.
-6. **In Discord:** `/statusbot setup kanal:#status` legt die Live-Nachricht an. Optional: `/statusbot alarm kanal:#meldungen rolle:@Minecraft`. Tipp: Status-Channel für `@everyone` auf „nur lesen“ stellen.
+6. **In Discord:** `/mc bot status-kanal kanal:#status` legt die Live-Nachricht an. Optional: `/mc bot meldungen kanal:#meldungen rolle:@Minecraft`. Tipp: Status-Channel für `@everyone` auf „nur lesen“ stellen.
 7. **Autostart:** `autostart-einrichten.bat` ausführen (startet den Bot minimiert bei der Windows-Anmeldung).
 8. **Empfohlen:** `rcon-firewall-sperren.bat` als Administrator ausführen. Sperrt den RCON-Port für andere PCs (z. B. alle im Radmin-Netz); der Bot verbindet sich lokal und ist nicht betroffen.
-9. **Für `/server neustart`:** `server-startskript/start-mit-neustart.bat` in den Serverordner kopieren, prüfen, dass die `java …`-Zeile der aus eurer `run.bat` entspricht, und den Server ab jetzt damit starten. Es startet den Server nach jedem Beenden neu (`N` innerhalb von 15 s lässt ihn aus).
+9. **Für `/mc server neustart`:** `server-startskript/start-mit-neustart.bat` in den Serverordner kopieren, prüfen, dass die `java …`-Zeile der aus eurer `run.bat` entspricht, und den Server ab jetzt damit starten. Es startet den Server nach jedem Beenden neu (`N` innerhalb von 15 s lässt ihn aus).
 
 Einrichtung auf einem fremden PC mit Claude Code? Siehe [INSTALL.de.md](INSTALL.de.md).
 
@@ -55,21 +55,25 @@ Einrichtung auf einem fremden PC mit Claude Code? Siehe [INSTALL.de.md](INSTALL.
 
 ## Befehle
 
+Alles hängt an einem Befehl, `/mc`: `server` betrifft den Minecraft-Server, `bot` den Discord-Bot.
+
 | Befehl | Wer | Was |
 |---|---|---|
-| `/status` | alle | Aktueller Status, nur für dich sichtbar |
-| `/statusbot setup kanal:` | Admins | Live-Nachricht in einem Channel anlegen |
-| `/statusbot alarm kanal: [rolle:]` / `alarm-aus` | Admins | Meldungen an / aus |
-| `/statusbot rekorde-zuruecksetzen` / `info` | Admins | Rekorde zurücksetzen / Einstellungen und RCON-Zustand |
-| `/server neustart [countdown:]` | Bot-Besitzer | Server neu starten (sofort / 1 / 5 / 10 Min. Countdown) |
-| `/server neustart-abbrechen` | Bot-Besitzer | Geplanten Neustart abbrechen |
-| `/server update` | Bot-Besitzer | Sofort auf neue Bot-Version prüfen und installieren |
+| `/mc status` | alle | Aktueller Status, nur für dich sichtbar |
+| `/mc hilfe` | alle | Zeigt die Befehle, die du nutzen darfst |
+| `/mc server neustart [countdown:]` | Bot-Besitzer | Minecraft-Server neu starten (sofort / 1 / 5 / 10 Min. Countdown) |
+| `/mc server neustart-abbrechen` | Bot-Besitzer | Geplanten Neustart abbrechen |
+| `/mc bot status-kanal kanal:` | Admins | Live-Status-Nachricht in einem Channel anlegen |
+| `/mc bot meldungen kanal: [rolle:]` / `meldungen-aus` | Admins | Meldungen an / aus |
+| `/mc bot rekorde-zuruecksetzen` | Admins | Tages- und Allzeit-Rekord zurücksetzen |
+| `/mc bot info` | Admins | Version, Einstellungen, RCON-Zustand, Neustart-Zeitplan |
+| `/mc bot update` | Bot-Besitzer | Sofort nach einer neuen **Bot**-Version suchen und installieren |
 
-`/server` wird im Code gegen die Discord-User-ID des Besitzers geprüft – Discord-Rollen oder Admin-Rechte reichen nicht.
+Discord kann nur ganze Befehle ausblenden, deshalb sieht jeder alle `/mc`-Unterbefehle – die Rechte prüft der Bot selbst: „Admins“ = *Server verwalten* (oder Bot-Besitzer), „Bot-Besitzer“ = Discord-User-ID des Besitzers (Rollen reichen nicht).
 
 ## Auto-Update
 
-Alle 6 h (oder per `/server update`) holt der Bot das neueste GitHub-Release, prüft jede Datei gegen die SHA-256-Prüfsummen in `release-manifest.json`, sichert die bisherigen Dateien nach `update/backup/`, installiert und startet sich neu. Stürzt die neue Version beim Start ab, stellt `start-bot.bat` die vorherige wieder her und überspringt diese Version. `.env`, `state.json`, `logs/` und der Serverordner werden nie angefasst.
+Alle 6 h (oder per `/mc bot update`) holt der Bot das neueste GitHub-Release, prüft jede Datei gegen die SHA-256-Prüfsummen in `release-manifest.json`, sichert die bisherigen Dateien nach `update/backup/`, installiert und startet sich neu. Stürzt die neue Version beim Start ab, stellt `start-bot.bat` die vorherige wieder her und überspringt diese Version. `.env`, `state.json`, `logs/` und der Serverordner werden nie angefasst.
 
 > ⚠️ Wer in diesem Repo Releases veröffentlichen kann, kann Code auf dem Host-PC ausführen. Prüfsummen schützen vor kaputten Downloads, nicht vor einem übernommenen GitHub-Konto – **2FA aktivieren**. Wer das nicht will, setzt `AUTO_UPDATE=false`.
 
@@ -90,9 +94,9 @@ Alles steht im Konsolenfenster und in `logs/bot.log`.
 | `DISCORD_TOKEN ist ungültig` | Token im Developer Portal neu erzeugen, `.env` anpassen |
 | `RCON … ECONNREFUSED` | Server läuft nicht, RCON aus oder falscher `RCON_PORT` |
 | `RCON-Passwort ist falsch` | `RCON_PASSWORD` muss exakt `rcon.password` entsprechen |
-| Nachricht bleibt 🟡 | RCON antwortet nicht (starker Lag oder falsches Passwort) – `/statusbot info` prüfen |
+| Nachricht bleibt 🟡 | RCON antwortet nicht (starker Lag oder falsches Passwort) – `/mc bot info` prüfen |
 | Slash-Befehle fehlen | Discord neu laden (`Strg+R`); Bot mit dem Link aus der Konsole neu einladen |
-| `/server neustart` warnt wegen des Skripts | Server wurde über `run.bat` gestartet – einmal über `start-mit-neustart.bat` starten |
+| `/mc server neustart` warnt wegen des Skripts | Server wurde über `run.bat` gestartet – einmal über `start-mit-neustart.bat` starten |
 | „Aktualisiert“-Zeit ist alt | Host-PC oder Bot sind aus (nach hartem Ausschalten kann der Bot die Nachricht nicht mehr ändern) |
 
 ## Entwicklung

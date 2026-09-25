@@ -106,4 +106,4 @@ run('git', ['push', 'origin', `v${version}`], { capture: false });
 run('gh', ['release', 'create', `v${version}`, '--title', `v${version}`, '--notes', notes || `Version ${version}`, '--verify-tag'], { capture: false });
 
 console.log(`\n✔ v${version} veröffentlicht. Die Bots installieren das Update bei ihrer nächsten Prüfung`);
-console.log('  (spätestens nach UPDATE_CHECK_HOURS) oder sofort per /server update in Discord.');
+console.log('  (spätestens nach UPDATE_CHECK_HOURS) oder sofort per /mc bot update in Discord.');
