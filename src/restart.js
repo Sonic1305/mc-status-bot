@@ -1,12 +1,18 @@
 import { execFile } from 'node:child_process';
 import { escapeMarkdown } from 'discord.js';
 import { log } from './log.js';
+import { getListeningProcess, isProcessAlive, killProcess } from './uptime.js';
 
 // Ablauf eines Neustarts:
 //   countdown  -> Spieler werden im Spiel gewarnt, danach schickt der Bot per RCON "stop"
 //   restarting -> der Server fährt herunter; das Startskript (start-mit-neustart.bat)
 //                 startet ihn neu; der Bot wartet, bis er wieder online ist
 // Der Bot startet den Server nie selbst – er schickt nur "stop".
+//
+// Hänger-Absicherung: Manche Mods werfen beim Herunterfahren Fehler, danach beendet sich der
+// Java-Prozess nicht (die Welt ist dann schon gespeichert). Der Bot merkt sich vor dem "stop"
+// den Serverprozess und beendet genau diesen hart, wenn er nach RESTART_KILL_AFTER_MINUTES
+// noch läuft. Das Startskript startet den Server danach normal neu.
 
 export const COUNTDOWN_CHOICES = [0, 1, 5, 10]; // Auswahl bei /server neustart
 export const MAX_COUNTDOWN_MINUTES = 30;
@@ -65,17 +71,19 @@ export class RestartManager {
   #timers = [];
 
   /**
-   * @param deps.monitor  { snapshot, rconEnabled, rconExec(cmd) }
+   * @param deps.monitor  { snapshot, rconEnabled, rconExec(cmd), pauseRcon(bool) }
    * @param deps.notify   (alert) => void – Meldung in den Meldungs-Channel
    * @param deps.refresh  () => Promise – Status-Nachricht sofort aktualisieren
+   * @param deps.processes { getListeningProcess, isProcessAlive, killProcess } – für Tests austauschbar
    */
-  constructor({ config, state, save, monitor, notify, refresh }) {
+  constructor({ config, state, save, monitor, notify, refresh, processes = { getListeningProcess, isProcessAlive, killProcess } }) {
     this.config = config;
     this.state = state;
     this.save = save;
     this.monitor = monitor;
     this.notify = notify;
     this.refresh = refresh;
+    this.processes = processes;
   }
 
   /** Liefert einen Grund, warum gerade kein Neustart möglich ist, sonst null. */
@@ -149,12 +157,14 @@ export class RestartManager {
     return null;
   }
 
-  /** Beim Start des Bots: Ein Countdown aus dem vorherigen Bot-Prozess ist verloren. */
+  /** Beim Start des Bots: Ein Countdown aus dem vorherigen Bot-Prozess ist verloren; ein laufender Neustart geht weiter. */
   recoverAfterBotStart() {
     if (this.state.restart?.phase === 'countdown') {
       log.warn('Ein geplanter Neustart wurde verworfen, weil der Bot zwischendurch beendet wurde.');
       this.state.restart = null;
       this.save();
+    } else if (this.state.restart?.phase === 'restarting') {
+      this.monitor.pauseRcon?.(true);
     }
   }
 
@@ -167,16 +177,38 @@ export class RestartManager {
   }
 
   /** Bei jeder Abfrage aufrufen: verfolgt einen laufenden Neustart. */
-  onPoll(snapshot, now = Date.now()) {
+  async onPoll(snapshot, now = Date.now()) {
     const restart = this.state.restart;
     if (restart?.phase !== 'restarting') return;
     const reachable = (snapshot.status === 'online' || snapshot.status === 'degraded') && !snapshot.stale;
     const name = this.config.serverName;
 
+    // Ist bekannt, welcher Prozess vorher lief, zählt dessen Ende – nicht, ob der Server noch auf Pings antwortet.
+    // Ein Server, der beim Herunterfahren hängt, beantwortet Pings oft weiter.
+    const serverProcess = restart.serverProcess;
+    if (serverProcess && !restart.processGone) {
+      const alive = await this.processes.isProcessAlive(serverProcess);
+      if (alive === false) {
+        restart.processGone = true;
+        restart.sawDown = true;
+        log.info(`Serverprozess beendet (${formatDuration(now - restart.stopSentAt)} nach "stop").`);
+      } else if (alive === true) {
+        const killAfterMs = this.config.restartKillAfterMinutes * 60 * 1000;
+        if (killAfterMs > 0 && now - restart.stopSentAt >= killAfterMs) {
+          await this.#killHungServer(restart, now);
+          return;
+        }
+        if (killAfterMs === 0 && now - restart.stopSentAt >= SHUTDOWN_TIMEOUT_MS) this.#failStillRunning();
+        return; // alter Prozess läuft noch: Server gilt nicht als "wieder da"
+      }
+      // alive === null: nicht prüfbar -> unten wie bisher am Ping entscheiden
+    }
+
     if (!reachable) {
       restart.sawDown = true;
-      if (now - restart.stopSentAt >= this.config.restartTimeoutMinutes * 60 * 1000) {
-        this.state.restart = null;
+      const since = restart.killedAt ?? restart.stopSentAt;
+      if (now - since >= this.config.restartTimeoutMinutes * 60 * 1000) {
+        this.#end();
         this.state.offlineAlert = 'sent'; // Beim Wiederkommen gibt es dann "wieder online".
         log.warn(`Server ist ${this.config.restartTimeoutMinutes} Min. nach dem Neustart nicht zurück.`);
         this.notify({
@@ -186,32 +218,73 @@ export class RestartManager {
         });
       }
     } else if (restart.sawDown) {
-      this.state.restart = null;
+      this.#end();
       this.state.lastRestartAt = now;
-      log.info(`Neustart abgeschlossen nach ${formatDuration(now - restart.stopSentAt)}.`);
+      log.info(`Neustart abgeschlossen nach ${formatDuration(now - restart.stopSentAt)}`);
       if (!restart.quiet) {
         this.notify({ text: `🟢 **${name} ist nach dem Neustart wieder online** (Dauer ${formatDuration(now - restart.stopSentAt)}).` });
       }
     } else if (now - restart.stopSentAt >= SHUTDOWN_TIMEOUT_MS) {
-      this.state.restart = null;
-      log.warn('Neustart fehlgeschlagen: Der Server läuft nach "stop" immer noch.');
-      this.notify({ text: '⚠️ **Neustart fehlgeschlagen:** Der Server läuft nach dem stop-Befehl immer noch.' });
+      this.#failStillRunning();
     }
+  }
+
+  /** Server hängt nach "stop": genau den gemerkten Prozess hart beenden. */
+  async #killHungServer(restart, now) {
+    const name = this.config.serverName;
+    const minutes = Math.round((now - restart.stopSentAt) / 60000);
+    const killed = await this.processes.killProcess(restart.serverProcess);
+    if (killed) {
+      restart.processGone = true;
+      restart.sawDown = true;
+      restart.killedAt = now;
+      this.save();
+      log.warn(`Serverprozess (PID ${restart.serverProcess.pid}) lief ${minutes} Min. nach "stop" noch – hart beendet.`);
+      this.notify({
+        text: `⚠️ **${name} hing nach dem Stoppen:** Der Serverprozess lief ${minutes} Min. nach \`stop\` noch und wurde beendet. `
+          + `Die Welt war da bereits gespeichert; \`${this.config.restartScriptName}\` startet den Server jetzt neu.`,
+      });
+      return;
+    }
+    this.#end();
+    log.error(`Serverprozess (PID ${restart.serverProcess.pid}) hängt nach "stop" und konnte nicht beendet werden.`);
+    this.notify({
+      text: `⚠️ **${name} hängt nach dem Stoppen und konnte nicht beendet werden.** `
+        + 'Bitte am Host-PC den Java-Prozess des Servers beenden (evtl. läuft er mit Administratorrechten).',
+      ping: true,
+    });
+  }
+
+  #failStillRunning() {
+    this.#end();
+    log.warn('Neustart fehlgeschlagen: Der Server läuft nach "stop" immer noch.');
+    this.notify({ text: '⚠️ **Neustart fehlgeschlagen:** Der Server läuft nach dem stop-Befehl immer noch.' });
+  }
+
+  /** Neustart-Phase beenden und RCON wieder freigeben. */
+  #end() {
+    this.state.restart = null;
+    this.monitor.pauseRcon?.(false);
   }
 
   async #sendStop() {
     const restart = this.state.restart;
     if (restart?.phase !== 'countdown') return;
     this.#clearTimers();
+    // Welcher Prozess ist der Server? Damit später genau dieser (und nur dieser) geprüft/beendet wird.
+    const serverProcess = await this.processes.getListeningProcess(this.config.mcPort, { host: this.config.mcHost }).catch(() => null);
+    if (!serverProcess) log.warn('Serverprozess nicht gefunden – ohne Hänger-Absicherung weiter.');
     try {
       await this.monitor.rconExec('stop');
     } catch (err) {
       // Der Server trennt RCON beim Herunterfahren oft, bevor die Antwort kommt.
       log.warn(`Antwort auf "stop": ${err.message} – der Server fährt vermutlich trotzdem herunter.`);
     }
-    this.state.restart = { ...restart, phase: 'restarting', stopSentAt: Date.now(), sawDown: false };
+    // Keine offene RCON-Verbindung, solange der Server herunterfährt.
+    this.monitor.pauseRcon?.(true);
+    this.state.restart = { ...restart, phase: 'restarting', stopSentAt: Date.now(), sawDown: false, serverProcess };
     this.save();
-    log.info('"stop" gesendet – warte, bis der Server neu gestartet ist.');
+    log.info(`"stop" gesendet${serverProcess ? ` (Serverprozess PID ${serverProcess.pid})` : ''} – warte, bis der Server neu gestartet ist.`);
     await this.refresh();
   }
 

@@ -250,7 +250,7 @@ async function pollOnce() {
   const alerts = [];
 
   // Laufender Neustart per /server neustart (schickt seine Meldungen selbst)
-  restartManager.onPoll(snapshot, now);
+  await restartManager.onPoll(snapshot, now);
   const restarting = Boolean(state.restart);
 
   // Online/Offline-Wechsel

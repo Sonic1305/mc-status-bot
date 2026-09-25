@@ -55,6 +55,7 @@ export class Monitor {
   #fails = 0;
   #rconError = null;
   #tpsWarned = false;
+  #rconPaused = false;
 
   snapshot = emptySnapshot('unknown');
 
@@ -140,6 +141,19 @@ export class Monitor {
     return this.snapshot;
   }
 
+  /**
+   * RCON während eines Neustarts ruhen lassen: Verbindung schließen und bis zum Aufheben nicht neu verbinden.
+   * Offene RCON-Verbindungen können einen Server, der beim Herunterfahren hängt, zusätzlich am Leben halten.
+   */
+  pauseRcon(paused) {
+    this.#rconPaused = paused;
+    if (paused) this.#rcon?.close();
+  }
+
+  get rconPaused() {
+    return this.#rconPaused;
+  }
+
   /** Führt einen RCON-Befehl aus (für Neustart-Ankündigungen und "stop"). */
   rconExec(command) {
     if (!this.#rcon) return Promise.reject(new Error('RCON ist nicht eingerichtet'));
@@ -151,7 +165,7 @@ export class Monitor {
   }
 
   async #queryRcon() {
-    if (!this.#rcon) return null;
+    if (!this.#rcon || this.#rconPaused) return null;
     const list = parseList(await this.#rcon.exec('list uuids'));
 
     let tps = null;

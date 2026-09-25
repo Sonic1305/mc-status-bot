@@ -104,6 +104,7 @@ export const config = {
   restartScriptName: scriptName('RESTART_SCRIPT_NAME', 'start-mit-neustart.bat'),
   restartTimeoutMinutes: num('RESTART_TIMEOUT_MINUTES', 10, { min: 3, max: 60 }),
   restartCooldownMinutes: num('RESTART_COOLDOWN_MINUTES', 5, { min: 0, max: 120 }),
+  restartKillAfterMinutes: num('RESTART_KILL_AFTER_MINUTES', 5, { min: 0, max: 30 }), // 0 = hängenden Server nie beenden
   restartSchedule: schedule('RESTART_SCHEDULE'), // leer = keine geplanten Neustarts
   restartScheduleCountdown: num('RESTART_SCHEDULE_COUNTDOWN_MINUTES', 5, { min: 0, max: 30 }),
 

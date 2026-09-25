@@ -47,6 +47,7 @@ Setting it up on someone else's PC with Claude Code? See [INSTALL.md](INSTALL.md
 | `OWNER_IDS` | owner of the Discord app | Discord user IDs allowed to use `/server` |
 | `RESTART_SCRIPT_NAME` | `start-mit-neustart.bat` | Restart script in the server folder |
 | `RESTART_TIMEOUT_MINUTES` / `RESTART_COOLDOWN_MINUTES` | `10` / `5` | Alert if not back / min. gap between restarts |
+| `RESTART_KILL_AFTER_MINUTES` | `5` | If the server process still runs this long after `stop` (e.g. a mod error while shutting down), the bot kills exactly that process so the restart script can start it again. `0` = never |
 | `RESTART_SCHEDULE` / `RESTART_SCHEDULE_COUNTDOWN_MINUTES` | off / `5` | Daily restart times, e.g. `"04:00,16:00"` (in `TIMEZONE`) / countdown before. Skipped if the server started < 30 min ago or the restart script isn't running. Replaces a Windows Task Scheduler restart – don't use both |
 | `AUTO_UPDATE` / `UPDATE_CHECK_HOURS` | `true` / `6` | Install new releases automatically |
 | `UPDATE_REPO` | from `package.json` | GitHub repo for updates |
