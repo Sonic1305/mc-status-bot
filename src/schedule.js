@@ -3,7 +3,7 @@ import { countRestartScriptProcesses } from './restart.js';
 
 // Geplante Neustarts (RESTART_SCHEDULE="04:00,16:00").
 // Zur eingestellten Uhrzeit fährt der Server herunter; RESTART_SCHEDULE_COUNTDOWN_MINUTES
-// vorher beginnt der Countdown im Spiel. Der Ablauf selbst ist derselbe wie bei /mc server neustart,
+// vorher beginnt der Countdown im Spiel. Der Ablauf selbst ist derselbe wie bei /mc server restart,
 // nur ohne Meldungen im Channel (außer wenn etwas schiefgeht).
 
 const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;

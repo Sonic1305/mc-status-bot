@@ -76,7 +76,7 @@ Start-Process -FilePath "$bot\start-bot.bat" -WorkingDirectory $bot -WindowStyle
 ```
 Tell the user: the minimized window "Minecraft Status-Bot" must stay open.
 
-### 7. Restart script (for `/mc server neustart`)
+### 7. Restart script (for `/mc server restart`)
 Copy `server-startskript\start-mit-neustart.bat` into the server folder (ask before overwriting). Its `java …` line must equal the one in `run.bat` – replace only that line if it differs, keep CRLF line endings. With the user's OK, switch shortcuts/autostart from `run.bat` to it. Tell the user: start the server with this file from now on; press `N` within 15 s after a stop to keep it off. The currently running server switches over at its next restart.
 
 **Scheduled restarts:** check the Windows Task Scheduler for tasks that stop/start the server (`run.bat`, `java`, `taskkill`, `mcrcon`) and show them to the user. A task must no longer *start* the server (the restart script does that – otherwise it starts twice). If the user wants the bot to do the scheduled restarts instead (countdown in game, clean shutdown), disable that task with their OK and set `RESTART_SCHEDULE="HH:MM"` in `.env`.

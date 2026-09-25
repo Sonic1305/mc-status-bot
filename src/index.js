@@ -137,7 +137,7 @@ async function publishNow(embed) {
     channel = await client.channels.fetch(state.statusChannelId);
   } catch (err) {
     if (err.code === 10003) {
-      log.warn('Der Status-Kanal wurde gelöscht – in Discord „/mc bot status-kanal“ erneut ausführen.');
+      log.warn('Der Status-Kanal wurde gelöscht – in Discord „/mc bot status-channel“ erneut ausführen.');
       state.statusChannelId = null;
       state.statusMessageId = null;
       save();
@@ -249,7 +249,7 @@ async function pollOnce() {
   const up = snapshot.status === 'online' || snapshot.status === 'degraded';
   const alerts = [];
 
-  // Laufender Neustart (/mc server neustart oder Zeitplan) – schickt seine Meldungen selbst
+  // Laufender Neustart (/mc server restart oder Zeitplan) – schickt seine Meldungen selbst
   await restartManager.onPoll(snapshot, now);
   const restarting = Boolean(state.restart);
 
@@ -385,7 +385,7 @@ client.once(Events.ClientReady, async (readyClient) => {
 
   await resolveOwners(readyClient);
   for (const guild of readyClient.guilds.cache.values()) await registerCommands(guild);
-  if (!state.statusChannelId) log.warn('Noch kein Status-Kanal gesetzt – in Discord „/mc bot status-kanal“ ausführen.');
+  if (!state.statusChannelId) log.warn('Noch kein Status-Kanal gesetzt – in Discord „/mc bot status-channel“ ausführen.');
 
   log.info(`Frage ${config.mcHost}:${config.mcPort} alle ${config.pollIntervalSec} s ab${monitor.rconEnabled ? ` (RCON-Port ${config.rconPort})` : ' (nur Status-Ping)'}.`);
 

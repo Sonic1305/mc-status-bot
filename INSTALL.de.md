@@ -76,7 +76,7 @@ Start-Process -FilePath "$bot\start-bot.bat" -WorkingDirectory $bot -WindowStyle
 ```
 Dem Nutzer sagen: Das minimierte Fenster „Minecraft Status-Bot“ muss offen bleiben.
 
-### 7. Neustart-Skript (für `/mc server neustart`)
+### 7. Neustart-Skript (für `/mc server restart`)
 `server-startskript\start-mit-neustart.bat` in den Serverordner kopieren (vor dem Überschreiben fragen). Die `java …`-Zeile muss der aus der `run.bat` entsprechen – bei Abweichung nur diese Zeile ersetzen, CRLF-Zeilenenden beibehalten. Mit OK des Nutzers Verknüpfungen/Autostart von `run.bat` darauf umstellen. Dem Nutzer sagen: Server ab jetzt mit dieser Datei starten; nach einem Stopp innerhalb von 15 s `N` drücken, damit er aus bleibt. Der gerade laufende Server wechselt beim nächsten Neustart.
 
 **Geplante Neustarts:** In der Windows-Aufgabenplanung nach Aufgaben suchen, die den Server stoppen/starten (`run.bat`, `java`, `taskkill`, `mcrcon`), und sie dem Nutzer zeigen. Eine Aufgabe darf den Server nicht mehr *starten* (das macht das Neustart-Skript – sonst startet er doppelt). Will der Nutzer die geplanten Neustarts stattdessen vom Bot (Countdown im Spiel, sauberes Herunterfahren), die Aufgabe mit seinem OK deaktivieren und `RESTART_SCHEDULE="HH:MM"` in der `.env` setzen.

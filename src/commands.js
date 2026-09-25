@@ -14,8 +14,8 @@ import { buildStatusEmbed, discordTime } from './embed.js';
 import { log } from './log.js';
 import { countRestartScriptProcesses } from './restart.js';
 
-// Alle Befehle hängen an einem Basisbefehl:
-//   /mc status | hilfe                    – für alle
+// Alle Befehle hängen an einem Basisbefehl (Namen und Beschreibungen auf Englisch):
+//   /mc status | help                     – für alle
 //   /mc server …                          – betrifft den Minecraft-Server
 //   /mc bot …                             – betrifft den Discord-Bot
 //
@@ -27,87 +27,87 @@ const CONFIRM_TIMEOUT_MS = 60_000;
 const TEXT_CHANNELS = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
 
 const channelOption = (description) => (opt) => opt
-  .setName('kanal').setDescription(description).addChannelTypes(...TEXT_CHANNELS).setRequired(true);
+  .setName('channel').setDescription(description).addChannelTypes(...TEXT_CHANNELS).setRequired(true);
 
 export const commandData = [
   new SlashCommandBuilder()
     .setName(BASE_COMMAND)
-    .setDescription('Minecraft-Server und Status-Bot')
+    .setDescription('Minecraft server and status bot')
     .setContexts(InteractionContextType.Guild)
     .addSubcommand((sub) => sub
       .setName('status')
-      .setDescription('Aktueller Status des Minecraft-Servers (nur für dich sichtbar)'))
+      .setDescription('Current status of the Minecraft server (only visible to you)'))
     .addSubcommand((sub) => sub
-      .setName('hilfe')
-      .setDescription('Zeigt die Befehle, die du nutzen darfst'))
+      .setName('help')
+      .setDescription('Show the commands you are allowed to use'))
     .addSubcommandGroup((group) => group
       .setName('server')
-      .setDescription('Minecraft-Server steuern')
+      .setDescription('Control the Minecraft server')
       .addSubcommand((sub) => sub
-        .setName('neustart')
-        .setDescription('Minecraft-Server neu starten, mit Countdown im Spiel (Bot-Besitzer)')
+        .setName('restart')
+        .setDescription('Restart the Minecraft server with an in-game countdown (bot owner)')
         .addIntegerOption((opt) => opt
           .setName('countdown')
-          .setDescription('Vorwarnzeit für die Spieler (Standard: 1 Minute)')
+          .setDescription('Warning time for the players (default: 1 minute)')
           .addChoices(
-            { name: 'sofort', value: 0 },
-            { name: '1 Minute', value: 1 },
-            { name: '5 Minuten', value: 5 },
-            { name: '10 Minuten', value: 10 },
+            { name: 'now', value: 0 },
+            { name: '1 minute', value: 1 },
+            { name: '5 minutes', value: 5 },
+            { name: '10 minutes', value: 10 },
           )))
       .addSubcommand((sub) => sub
-        .setName('neustart-abbrechen')
-        .setDescription('Geplanten Neustart abbrechen (Bot-Besitzer)')))
+        .setName('cancel-restart')
+        .setDescription('Cancel a scheduled restart (bot owner)')))
     .addSubcommandGroup((group) => group
       .setName('bot')
-      .setDescription('Status-Bot einrichten und verwalten')
+      .setDescription('Set up and manage the status bot')
       .addSubcommand((sub) => sub
-        .setName('status-kanal')
-        .setDescription('Live-Status-Nachricht in diesem Channel anlegen (Admins)')
-        .addChannelOption(channelOption('Channel für die Live-Status-Nachricht')))
+        .setName('status-channel')
+        .setDescription('Post the live status message in a channel (admins)')
+        .addChannelOption(channelOption('Channel for the live status message')))
       .addSubcommand((sub) => sub
-        .setName('meldungen')
-        .setDescription('Meldungen (offline/online, Rekorde, Probleme) in einen Channel schicken (Admins)')
-        .addChannelOption(channelOption('Channel für die Meldungen'))
+        .setName('alerts')
+        .setDescription('Send alerts (offline/online, records, problems) to a channel (admins)')
+        .addChannelOption(channelOption('Channel for the alerts'))
         .addRoleOption((opt) => opt
-          .setName('rolle')
-          .setDescription('Rolle, die bei Offline/Online erwähnt wird (optional)')))
+          .setName('role')
+          .setDescription('Role to mention when the server goes offline/online (optional)')))
       .addSubcommand((sub) => sub
-        .setName('meldungen-aus')
-        .setDescription('Meldungen abschalten (Admins)'))
+        .setName('alerts-off')
+        .setDescription('Turn alerts off (admins)'))
       .addSubcommand((sub) => sub
-        .setName('rekorde-zuruecksetzen')
-        .setDescription('Tages- und Allzeit-Spielerrekord zurücksetzen (Admins)'))
+        .setName('reset-records')
+        .setDescription('Reset the daily and all-time player records (admins)'))
       .addSubcommand((sub) => sub
         .setName('info')
-        .setDescription('Version, Einstellungen und Verbindungszustand des Bots (Admins)'))
+        .setDescription('Version, settings and connection state of the bot (admins)'))
       .addSubcommand((sub) => sub
         .setName('update')
-        .setDescription('Nach einer neuen Bot-Version suchen und installieren (Bot-Besitzer)'))),
+        .setDescription('Check for a new bot version and install it (bot owner)'))),
 ].map((command) => command.toJSON());
 
 // Wer darf was: 'all' = alle, 'admin' = "Server verwalten" oder Bot-Besitzer, 'owner' = nur Bot-Besitzer
 const ACCESS = {
   'status': 'all',
-  'hilfe': 'all',
-  'server neustart': 'owner',
-  'server neustart-abbrechen': 'owner',
-  'bot status-kanal': 'admin',
-  'bot meldungen': 'admin',
-  'bot meldungen-aus': 'admin',
-  'bot rekorde-zuruecksetzen': 'admin',
+  'help': 'all',
+  'server restart': 'owner',
+  'server cancel-restart': 'owner',
+  'bot status-channel': 'admin',
+  'bot alerts': 'admin',
+  'bot alerts-off': 'admin',
+  'bot reset-records': 'admin',
   'bot info': 'admin',
   'bot update': 'owner',
 };
 
 const HELP = [
   ['status', 'all', 'Aktueller Serverstatus'],
-  ['server neustart [countdown]', 'owner', 'Minecraft-Server neu starten'],
-  ['server neustart-abbrechen', 'owner', 'Geplanten Neustart abbrechen'],
-  ['bot status-kanal kanal:', 'admin', 'Live-Status-Nachricht anlegen'],
-  ['bot meldungen kanal: [rolle:]', 'admin', 'Meldungen einschalten'],
-  ['bot meldungen-aus', 'admin', 'Meldungen abschalten'],
-  ['bot rekorde-zuruecksetzen', 'admin', 'Spielerrekorde zurücksetzen'],
+  ['server restart [countdown]', 'owner', 'Minecraft-Server neu starten'],
+  ['server cancel-restart', 'owner', 'Geplanten Neustart abbrechen'],
+  ['bot status-channel channel:', 'admin', 'Live-Status-Nachricht anlegen'],
+  ['bot alerts channel: [role:]', 'admin', 'Meldungen einschalten'],
+  ['bot alerts-off', 'admin', 'Meldungen abschalten'],
+  ['bot reset-records', 'admin', 'Spielerrekorde zurücksetzen'],
   ['bot info', 'admin', 'Einstellungen und Zustand des Bots'],
   ['bot update', 'owner', 'Bot-Update sofort installieren'],
 ];
@@ -213,7 +213,7 @@ async function restartServer(interaction, ctx) {
     content: error
       ? `❌ ${error}`
       : minutes
-        ? `✅ Neustart in ${minutes} Min. geplant – die Spieler werden im Spiel gewarnt. Abbrechen mit ${cmd('server neustart-abbrechen')}.`
+        ? `✅ Neustart in ${minutes} Min. geplant – die Spieler werden im Spiel gewarnt. Abbrechen mit ${cmd('server cancel-restart')}.`
         : '✅ Neustart läuft.',
     components: [],
   });
@@ -225,7 +225,7 @@ async function cancelRestart(interaction, ctx) {
 }
 
 async function setStatusChannel(interaction, ctx, { guild, me }) {
-  const channel = await guild.channels.fetch(interaction.options.getChannel('kanal', true).id);
+  const channel = await guild.channels.fetch(interaction.options.getChannel('channel', true).id);
   const missing = missingPermissions(channel, me, STATUS_CHANNEL_PERMS);
   if (missing.length) {
     await interaction.editReply(`❌ Mir fehlen in ${channel} diese Rechte: **${missing.join(', ')}**.`);
@@ -239,8 +239,8 @@ async function setStatusChannel(interaction, ctx, { guild, me }) {
 }
 
 async function setAlertChannel(interaction, ctx, { guild, me }) {
-  const channel = await guild.channels.fetch(interaction.options.getChannel('kanal', true).id);
-  const role = interaction.options.getRole('rolle');
+  const channel = await guild.channels.fetch(interaction.options.getChannel('channel', true).id);
+  const role = interaction.options.getRole('role');
   const missing = missingPermissions(channel, me, ALERT_CHANNEL_PERMS);
   if (missing.length) {
     await interaction.editReply(`❌ Mir fehlen in ${channel} diese Rechte: **${missing.join(', ')}**.`);
@@ -295,7 +295,7 @@ async function showInfo(interaction, ctx) {
     : `${config.autoUpdate ? `automatisch alle ${config.updateCheckHours} h` : 'aus (AUTO_UPDATE=false)'} · github.com/${config.updateRepo}`;
   const lines = [
     `**Version:** v${config.version} · **Updates:** ${updateLine}`,
-    `**Status-Kanal:** ${state.statusChannelId ? `<#${state.statusChannelId}>` : `— noch nicht eingerichtet (${cmd('bot status-kanal')})`}`,
+    `**Status-Kanal:** ${state.statusChannelId ? `<#${state.statusChannelId}>` : `— noch nicht eingerichtet (${cmd('bot status-channel')})`}`,
     `**Meldungen:** ${state.alertChannelId ? `<#${state.alertChannelId}>${state.alertRoleId ? ` mit <@&${state.alertRoleId}>` : ''}` : 'aus'}`,
     `**Server:** \`${config.mcHost}:${config.mcPort}\` · RCON-Port \`${config.rconPort}\``,
     `**RCON:** ${rconLine}`,
@@ -336,18 +336,18 @@ async function updateBot(interaction, ctx) {
 
 // Aktionen, die zuerst eine (nur für den Aufrufer sichtbare) Antwort vorbereiten
 const DEFERRED = {
-  'bot status-kanal': setStatusChannel,
-  'bot meldungen': setAlertChannel,
-  'bot meldungen-aus': disableAlerts,
-  'bot rekorde-zuruecksetzen': resetRecords,
+  'bot status-channel': setStatusChannel,
+  'bot alerts': setAlertChannel,
+  'bot alerts-off': disableAlerts,
+  'bot reset-records': resetRecords,
   'bot info': showInfo,
   'bot update': updateBot,
 };
 const DIRECT = {
   'status': showStatus,
-  'hilfe': showHelp,
-  'server neustart': restartServer,
-  'server neustart-abbrechen': cancelRestart,
+  'help': showHelp,
+  'server restart': restartServer,
+  'server cancel-restart': cancelRestart,
 };
 
 /**

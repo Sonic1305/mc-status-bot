@@ -16,9 +16,9 @@ test('Ein Basisbefehl /mc mit server- und bot-Gruppe, für alle sichtbar', () =>
     o.type === ApplicationCommandOptionType.SubcommandGroup ? o.options.map((s) => s.name) : 'sub']));
   assert.deepEqual(tree, {
     status: 'sub',
-    hilfe: 'sub',
-    server: ['neustart', 'neustart-abbrechen'],
-    bot: ['status-kanal', 'meldungen', 'meldungen-aus', 'rekorde-zuruecksetzen', 'info', 'update'],
+    help: 'sub',
+    server: ['restart', 'cancel-restart'],
+    bot: ['status-channel', 'alerts', 'alerts-off', 'reset-records', 'info', 'update'],
   });
 
   // Discord-Grenzen: Namen klein, max. 32 Zeichen; Beschreibungen max. 100 Zeichen
@@ -70,7 +70,7 @@ function ctx(extra = {}) {
 const text = (msg) => (typeof msg === 'string' ? msg : msg.content);
 
 test('Rechte: Admin-Befehl ohne "Server verwalten" wird abgelehnt', async () => {
-  const i = interaction({ group: 'bot', sub: 'meldungen-aus' });
+  const i = interaction({ group: 'bot', sub: 'alerts-off' });
   const c = ctx();
   await handleCommand(i, c);
   assert.match(text(i.calls.reply[0]), /Server verwalten/);
@@ -79,13 +79,13 @@ test('Rechte: Admin-Befehl ohne "Server verwalten" wird abgelehnt', async () => 
 
 test('Rechte: Admin darf Admin-Befehle, aber keine Besitzer-Befehle', async () => {
   const c = ctx();
-  const allowed = interaction({ group: 'bot', sub: 'meldungen-aus', admin: true });
+  const allowed = interaction({ group: 'bot', sub: 'alerts-off', admin: true });
   await handleCommand(allowed, c);
   assert.ok(allowed.calls.deferred);
   assert.match(text(allowed.calls.edit[0]), /Meldungen sind aus/);
   assert.equal(c.state.alertChannelId, null);
 
-  for (const [group, sub] of [['server', 'neustart'], ['server', 'neustart-abbrechen'], ['bot', 'update']]) {
+  for (const [group, sub] of [['server', 'restart'], ['server', 'cancel-restart'], ['bot', 'update']]) {
     const denied = interaction({ group, sub, admin: true });
     await handleCommand(denied, ctx());
     assert.match(text(denied.calls.reply[0]), /nur der Bot-Besitzer/, `${group} ${sub}`);
@@ -94,34 +94,34 @@ test('Rechte: Admin darf Admin-Befehle, aber keine Besitzer-Befehle', async () =
 
 test('Rechte: Bot-Besitzer darf alles, auch ohne Discord-Adminrechte', async () => {
   const c = ctx();
-  const i = interaction({ group: 'bot', sub: 'meldungen-aus', userId: OWNER });
+  const i = interaction({ group: 'bot', sub: 'alerts-off', userId: OWNER });
   await handleCommand(i, c);
   assert.equal(c.state.alertChannelId, null);
 
-  const cancel = interaction({ group: 'server', sub: 'neustart-abbrechen', userId: OWNER });
+  const cancel = interaction({ group: 'server', sub: 'cancel-restart', userId: OWNER });
   await handleCommand(cancel, ctx());
   assert.match(text(cancel.calls.reply[0]), /kein Neustart geplant/);
 });
 
-test('/mc status und /mc hilfe für alle; Hilfe zeigt nur erlaubte Befehle', async () => {
+test('/mc status und /mc help für alle; Hilfe zeigt nur erlaubte Befehle', async () => {
   const status = interaction({ sub: 'status' });
   await handleCommand(status, ctx());
   assert.equal(status.calls.reply[0].embeds.length, 1);
 
-  const helpUser = interaction({ sub: 'hilfe' });
+  const helpUser = interaction({ sub: 'help' });
   await handleCommand(helpUser, ctx());
   assert.match(text(helpUser.calls.reply[0]), /\/mc status/);
   assert.doesNotMatch(text(helpUser.calls.reply[0]), /\/mc bot|\/mc server/);
 
-  const helpAdmin = interaction({ sub: 'hilfe', admin: true });
+  const helpAdmin = interaction({ sub: 'help', admin: true });
   await handleCommand(helpAdmin, ctx());
   assert.match(text(helpAdmin.calls.reply[0]), /\/mc bot info/);
-  assert.doesNotMatch(text(helpAdmin.calls.reply[0]), /\/mc bot update|\/mc server neustart/);
+  assert.doesNotMatch(text(helpAdmin.calls.reply[0]), /\/mc bot update|\/mc server restart/);
 
-  const helpOwner = interaction({ sub: 'hilfe', userId: OWNER });
+  const helpOwner = interaction({ sub: 'help', userId: OWNER });
   await handleCommand(helpOwner, ctx());
   assert.match(text(helpOwner.calls.reply[0]), /\/mc bot update/);
-  assert.match(text(helpOwner.calls.reply[0]), /\/mc server neustart/);
+  assert.match(text(helpOwner.calls.reply[0]), /\/mc server restart/);
 });
 
 test('Alte Befehle werden ignoriert', async () => {
