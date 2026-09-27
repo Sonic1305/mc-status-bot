@@ -17,7 +17,7 @@ Die `.env` enthält Bot-Token und RCON-Passwort – niemals weitergeben. Der Bot
 Richte den fertigen Discord-Status-Bot auf diesem Windows-PC ein. Er läuft neben dem Minecraft-Server und fragt ihn lokal ab (RCON + Status-Ping). Hintergrund: `README.de.md`.
 
 **Regeln**
-- Nie Geheimnisse ausgeben (`DISCORD_TOKEN`, `RCON_PASSWORD`, `RADMIN_PASSWORD`). Beim Vergleichen nur „stimmt / stimmt nicht“ melden.
+- Nie Geheimnisse ausgeben (`DISCORD_TOKEN`, `RCON_PASSWORD`, `VPN_PASSWORD` / `RADMIN_PASSWORD`). Beim Vergleichen nur „stimmt / stimmt nicht“ melden.
 - `DISCORD_TOKEN` und Code in `src/` nicht ändern.
 - Den Minecraft-Server nicht stoppen/neu starten und `server.properties` nicht ändern ohne ausdrückliches OK – es können Spieler online sein.
 - Keine Firewall-Ports öffnen (der Bot verbindet sich nur ausgehend).
@@ -27,7 +27,7 @@ Richte den fertigen Discord-Status-Bot auf diesem Windows-PC ein. Er läuft nebe
 - `node -v` muss ≥ 20.6 sein. Fehlt Node, vor `winget install OpenJS.NodeJS.LTS` fragen (danach neue Shell).
 - `.env` muss existieren (nur Existenz prüfen). Fehlt sie, beim Nutzer anfragen – nicht aus `.env.example` anlegen.
 - Nach dem Serverordner fragen (enthält `server.properties`, `mods/`, `run.bat`).
-- IPv4 des Adapters **„Radmin VPN“** aus `ipconfig` notieren (beginnt mit `26.`).
+- Verbinden sich die Spieler über ein VPN (z. B. Radmin VPN), die IPv4 dieses Adapters aus `ipconfig` notieren (Radmin: beginnt mit `26.`).
 
 ### 2. Installieren und testen
 ```powershell
@@ -47,7 +47,7 @@ $p = Read-KV "$server\server.properties"; $e = Read-KV "$bot\.env"
 - `enable-rcon` muss `true` sein – sonst anhalten und fragen (braucht Änderung der `server.properties` + Server-Neustart).
 - `MC_HOST` sollte `127.0.0.1` sein (bzw. der Wert von `server-ip`, falls gesetzt). Der Besitzer hat die `.env` auf einem anderen PC ausgefüllt, die Änderung ist also gewollt.
 - Ports und Passwort: Die `server.properties` ist maßgeblich.
-- `CONNECT_ADDRESS` = `<Radmin-IP>:<server-port>`.
+- `CONNECT_ADDRESS` = `<VPN- oder öffentliche IP>:<server-port>` (leer lassen, wenn der Besitzer es leer gelassen hat).
 
 Werte ändern, ohne sie auszugeben (speichert UTF-8 ohne BOM):
 ```powershell
@@ -64,25 +64,25 @@ In zwei Sätzen erklären, dass der Bot neue Versionen automatisch von GitHub in
 - **Nein:** `AUTO_UPDATE=false` an die `.env` anhängen.
 
 ### 5. Probelauf
-`node --env-file=.env src/index.js` ca. 40 s im Hintergrund laufen lassen, `logs\bot.log` lesen, dann beenden. Erwartet: `Bei Discord angemeldet`, `Bot-Besitzer:`, `Auto-Update aktiv` (oder `ausgeschaltet`), `Server ist online`.
+`node --env-file=.env src/index.js` ca. 40 s im Hintergrund laufen lassen, `logs\bot.log` lesen, dann beenden. Erwartet (auf Englisch, oder Deutsch bei `LANGUAGE=de` bzw. wenn der Bot schon vor v1.3 installiert war): `Logged in to Discord` / `Bei Discord angemeldet`, `Bot owner:` / `Bot-Besitzer:`, `Auto-update active` / `Auto-Update aktiv` (oder aus), `Server is online` / `Server ist online`.
 - Einladungslink im Log → an den Nutzer für den Besitzer weitergeben.
-- `ECONNREFUSED` / `RCON-Passwort ist falsch` → zurück zu Schritt 3.
-- `DISCORD_TOKEN ist ungültig` → nicht selbst beheben; der Besitzer muss eine neue `.env` schicken.
+- `ECONNREFUSED` / `RCON-Passwort ist falsch` (`RCON password is wrong`) → zurück zu Schritt 3.
+- `DISCORD_TOKEN ist ungültig` (`is invalid`) → nicht selbst beheben; der Besitzer muss eine neue `.env` schicken.
 
 ### 6. Dauerbetrieb
 ```powershell
-cmd /c "autostart-einrichten.bat" < nul
+cmd /c "autostart-enable.bat" < nul
 Start-Process -FilePath "$bot\start-bot.bat" -WorkingDirectory $bot -WindowStyle Minimized
 ```
 Dem Nutzer sagen: Das minimierte Fenster „Minecraft Status-Bot“ muss offen bleiben.
 
 ### 7. Neustart-Skript (für `/mc server restart`)
-`server-startskript\start-mit-neustart.bat` in den Serverordner kopieren (vor dem Überschreiben fragen). Die `java …`-Zeile muss der aus der `run.bat` entsprechen – bei Abweichung nur diese Zeile ersetzen, CRLF-Zeilenenden beibehalten. Mit OK des Nutzers Verknüpfungen/Autostart von `run.bat` darauf umstellen. Dem Nutzer sagen: Server ab jetzt mit dieser Datei starten; nach einem Stopp innerhalb von 15 s `N` drücken, damit er aus bleibt. Der gerade laufende Server wechselt beim nächsten Neustart.
+Startet schon ein Dienst, Docker oder ein Hosting-Panel den Server nach dem Stoppen neu, `RESTART_SCRIPT_NAME=none` in der `.env` setzen und den Rest dieses Schritts überspringen. Sonst `server-script\start-with-restart.bat` in den Serverordner kopieren (vor dem Überschreiben fragen). Die `java …`-Zeile muss der aus der `run.bat` entsprechen – bei Abweichung nur diese Zeile ersetzen, CRLF-Zeilenenden beibehalten. Mit OK des Nutzers Verknüpfungen/Autostart von `run.bat` darauf umstellen. Dem Nutzer sagen: Server ab jetzt mit dieser Datei starten; nach einem Stopp innerhalb von 15 s `N` drücken, damit er aus bleibt. Der gerade laufende Server wechselt beim nächsten Neustart.
 
 **Geplante Neustarts:** In der Windows-Aufgabenplanung nach Aufgaben suchen, die den Server stoppen/starten (`run.bat`, `java`, `taskkill`, `mcrcon`), und sie dem Nutzer zeigen. Eine Aufgabe darf den Server nicht mehr *starten* (das macht das Neustart-Skript – sonst startet er doppelt). Will der Nutzer die geplanten Neustarts stattdessen vom Bot (Countdown im Spiel, sauberes Herunterfahren), die Aufgabe mit seinem OK deaktivieren und `RESTART_SCHEDULE="HH:MM"` in der `.env` setzen.
 
 ### 8. Firewall (empfohlen, macht der Nutzer)
-Fragen, ob etwas auf einem anderen PC RCON nutzt. Wenn nicht, führt der Nutzer `rcon-firewall-sperren.bat` per Rechtsklick → *Als Administrator ausführen* aus. Danach darf `logs\bot.log` keine neuen RCON-Fehler zeigen.
+Fragen, ob etwas auf einem anderen PC RCON nutzt. Wenn nicht, führt der Nutzer `block-rcon-firewall.bat` per Rechtsklick → *Als Administrator ausführen* aus. Danach darf `logs\bot.log` keine neuen RCON-Fehler zeigen.
 
 ### 9. Rückmeldung
 Node-Version, Bot-Ordner, geänderte `.env`-Einträge (nur Namen), Test- und Log-Ergebnis, Auto-Update an/aus, Autostart, Stand des Neustart-Skripts, Firewall-Regel.

@@ -4,25 +4,25 @@ cd /d "%~dp0"
 
 where node >nul 2>&1
 if errorlevel 1 (
-  echo [FEHLER] Node.js wurde nicht gefunden. Bitte zuerst Node.js installieren, siehe README.md.
+  echo [ERROR] Node.js was not found. Please install Node.js first, see README.md.
   pause
   exit /b 1
 )
 if not exist ".env" (
-  echo [FEHLER] Keine .env gefunden. Bitte zuerst install.bat ausfuehren und die .env ausfuellen.
+  echo [ERROR] No .env found. Please run install.bat first and fill in the .env.
   pause
   exit /b 1
 )
 if not exist "node_modules" (
-  echo [FEHLER] Abhaengigkeiten fehlen. Bitte zuerst install.bat ausfuehren.
+  echo [ERROR] Dependencies are missing. Please run install.bat first.
   pause
   exit /b 1
 )
 
 :loop
-rem Neue Fassung dieser Datei aus einem Update uebernehmen. Der Block wird komplett
-rem eingelesen, bevor die Datei ersetzt wird; danach startet die neue Fassung in
-rem einem neuen Fenster und dieses Fenster schliesst sich.
+rem Take over a new version of this file from an update. The block is read
+rem completely before the file is replaced; the new version then starts in a
+rem new window and this window closes.
 if exist "start-bot.bat.new" (
   move /y "start-bot.bat.new" "start-bot.bat" >nul
   start "Minecraft Status-Bot" /min cmd /c "%~f0"
@@ -32,17 +32,17 @@ if exist "start-bot.bat.new" (
 node --env-file=.env src\index.js
 set "CODE=%errorlevel%"
 
-rem Code 3 = Update wurde installiert, sofort die neue Version starten
+rem Code 3 = an update was installed, start the new version right away
 if "%CODE%"=="3" (
   echo.
-  echo Update installiert - starte die neue Version ...
+  echo Update installed - starting the new version ...
   goto loop
 )
 
-rem Neue Version ist abgestuerzt, bevor sie sich als lauffaehig gemeldet hat: zurueckrollen
+rem The new version crashed before reporting itself healthy: roll back
 if exist "update\pending-healthcheck.json" if not "%CODE%"=="0" (
   echo.
-  echo Die neue Version ist beim Start abgestuerzt, Code %CODE%. Stelle die vorherige Version wieder her ...
+  echo The new version crashed on start, code %CODE%. Restoring the previous version ...
   if exist "update\rollback.bat" call "update\rollback.bat"
   if exist "update\pending-healthcheck.json" del /q "update\pending-healthcheck.json"
   timeout /t 5 /nobreak >nul
@@ -52,12 +52,12 @@ if exist "update\pending-healthcheck.json" if not "%CODE%"=="0" (
 if "%CODE%"=="0" goto :eof
 if "%CODE%"=="2" (
   echo.
-  echo Konfigurationsfehler - bitte die Meldung oben lesen und die .env korrigieren.
+  echo Configuration error - please read the message above and fix the .env.
   pause
   goto :eof
 )
 echo.
-echo Bot wurde unerwartet beendet, Code %CODE%. Neustart in 15 Sekunden ...
-echo Zum Beenden einfach dieses Fenster schliessen.
+echo The bot stopped unexpectedly, code %CODE%. Restarting in 15 seconds ...
+echo To stop it, simply close this window.
 timeout /t 15 /nobreak >nul
 goto loop

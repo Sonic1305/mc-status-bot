@@ -17,7 +17,7 @@
 Set up the finished Discord status bot on this Windows PC. It runs next to the Minecraft server and queries it locally (RCON + status ping). Background: `README.md`.
 
 **Rules**
-- Never print secrets (`DISCORD_TOKEN`, `RCON_PASSWORD`, `RADMIN_PASSWORD`). When comparing, only report match / no match.
+- Never print secrets (`DISCORD_TOKEN`, `RCON_PASSWORD`, `VPN_PASSWORD` / `RADMIN_PASSWORD`). When comparing, only report match / no match.
 - Don't change `DISCORD_TOKEN` or code in `src/`.
 - Don't stop/restart the Minecraft server or edit `server.properties` without the user's explicit OK – players may be online.
 - Don't open firewall ports (the bot only connects outbound).
@@ -27,7 +27,7 @@ Set up the finished Discord status bot on this Windows PC. It runs next to the M
 - `node -v` must be ≥ 20.6. If missing, ask before running `winget install OpenJS.NodeJS.LTS` (new shell afterwards).
 - `.env` must exist (check existence only). If it's missing, ask the user for it – don't create it from `.env.example`.
 - Ask for the server folder (contains `server.properties`, `mods/`, `run.bat`).
-- Note the IPv4 of the **"Radmin VPN"** adapter from `ipconfig` (starts with `26.`).
+- If players connect through a VPN (e.g. Radmin VPN), note the IPv4 of that adapter from `ipconfig` (Radmin: starts with `26.`).
 
 ### 2. Install and test
 ```powershell
@@ -47,7 +47,7 @@ $p = Read-KV "$server\server.properties"; $e = Read-KV "$bot\.env"
 - `enable-rcon` must be `true` – otherwise stop and ask (needs `server.properties` change + server restart).
 - `MC_HOST` should be `127.0.0.1` (or the value of `server-ip` if that is set). The owner filled `.env` on another PC, so this change is intended.
 - Ports and password: `server.properties` wins.
-- `CONNECT_ADDRESS` = `<Radmin IP>:<server-port>`.
+- `CONNECT_ADDRESS` = `<VPN or public IP>:<server-port>` (leave it empty if the owner left it empty).
 
 Fix values without printing them (saves UTF-8 without BOM):
 ```powershell
@@ -64,25 +64,25 @@ Explain in two sentences that the bot installs new versions from GitHub automati
 - **No:** append `AUTO_UPDATE=false` to `.env`.
 
 ### 5. Test run
-Run `node --env-file=.env src/index.js` in the background for ~40 s, read `logs\bot.log`, then stop it. Expect: `Bei Discord angemeldet`, `Bot-Besitzer:`, `Auto-Update aktiv` (or `ausgeschaltet`), `Server ist online`.
+Run `node --env-file=.env src/index.js` in the background for ~40 s, read `logs\bot.log`, then stop it. Expect (in English, or German if `.env` has `LANGUAGE=de` or the bot was installed before v1.3): `Logged in to Discord` / `Bei Discord angemeldet`, `Bot owner:` / `Bot-Besitzer:`, `Auto-update active` / `Auto-Update aktiv` (or turned off), `Server is online` / `Server ist online`.
 - Invite link in the log → give it to the user for the owner.
-- `ECONNREFUSED` / `RCON-Passwort ist falsch` → back to step 3.
-- `DISCORD_TOKEN ist ungültig` → don't fix; the owner must send a new `.env`.
+- `ECONNREFUSED` / `RCON password is wrong` → back to step 3.
+- `DISCORD_TOKEN is invalid` → don't fix; the owner must send a new `.env`.
 
 ### 6. Run permanently
 ```powershell
-cmd /c "autostart-einrichten.bat" < nul
+cmd /c "autostart-enable.bat" < nul
 Start-Process -FilePath "$bot\start-bot.bat" -WorkingDirectory $bot -WindowStyle Minimized
 ```
 Tell the user: the minimized window "Minecraft Status-Bot" must stay open.
 
 ### 7. Restart script (for `/mc server restart`)
-Copy `server-startskript\start-mit-neustart.bat` into the server folder (ask before overwriting). Its `java …` line must equal the one in `run.bat` – replace only that line if it differs, keep CRLF line endings. With the user's OK, switch shortcuts/autostart from `run.bat` to it. Tell the user: start the server with this file from now on; press `N` within 15 s after a stop to keep it off. The currently running server switches over at its next restart.
+If a service, Docker or a hosting panel already restarts the server after it stops, set `RESTART_SCRIPT_NAME=none` in `.env` and skip the rest of this step. Otherwise copy `server-script\start-with-restart.bat` into the server folder (ask before overwriting). Its `java …` line must equal the one in `run.bat` – replace only that line if it differs, keep CRLF line endings. With the user's OK, switch shortcuts/autostart from `run.bat` to it. Tell the user: start the server with this file from now on; press `N` within 15 s after a stop to keep it off. The currently running server switches over at its next restart.
 
 **Scheduled restarts:** check the Windows Task Scheduler for tasks that stop/start the server (`run.bat`, `java`, `taskkill`, `mcrcon`) and show them to the user. A task must no longer *start* the server (the restart script does that – otherwise it starts twice). If the user wants the bot to do the scheduled restarts instead (countdown in game, clean shutdown), disable that task with their OK and set `RESTART_SCHEDULE="HH:MM"` in `.env`.
 
 ### 8. Firewall (recommended, user does it)
-Ask whether anything on another PC uses RCON. If not, the user runs `rcon-firewall-sperren.bat` via right-click → *Run as administrator*. Afterwards `logs\bot.log` must not show new RCON errors.
+Ask whether anything on another PC uses RCON. If not, the user runs `block-rcon-firewall.bat` via right-click → *Run as administrator*. Afterwards `logs\bot.log` must not show new RCON errors.
 
 ### 9. Report back
 Node version, bot folder, changed `.env` keys (names only), test and log results, auto-update on/off, autostart, restart script status, firewall rule.

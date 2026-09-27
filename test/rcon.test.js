@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { pingServer } from '../src/ping.js';
 import { RconClient } from '../src/rcon.js';
+import { setLanguage } from '../src/i18n.js';
 import { startMockRcon, startMockStatus } from './mock-servers.js';
+
+// Diese Tests prüfen die deutschen Texte; die englischen stehen in i18n.test.js.
+setLanguage('de');
 
 const LIST = 'There are 1 of a max of 16 players online: Steve (069a79f4-44e9-4726-a5be-fca90e38aaf5)';
 

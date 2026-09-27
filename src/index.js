@@ -8,11 +8,12 @@ import {
   PermissionFlagsBits,
   escapeMarkdown,
 } from 'discord.js';
-import { commandData, handleCommand } from './commands.js';
-import { config, validateConfig } from './config.js';
+import { buildCommandData, handleCommand } from './commands.js';
+import { applyStoredDefaults, config, validateConfig } from './config.js';
 import { buildStatusEmbed, buildStoppedEmbed, presenceFor, statusSignature } from './embed.js';
+import { locale, setLanguage, t } from './i18n.js';
 import { log } from './log.js';
-import { Monitor } from './monitor.js';
+import { Monitor, playerChanges } from './monitor.js';
 import { RestartManager } from './restart.js';
 import { RestartScheduler } from './schedule.js';
 import { loadState, saveState } from './state.js';
@@ -24,17 +25,22 @@ const EXIT_CONFIG_ERROR = 2;
 // Startet der Bot innerhalb dieser Zeit neu und der Server lief durch, bleibt "Online seit" erhalten.
 const RESUME_WINDOW_MS = 10 * 60 * 1000;
 
-log.info(`Minecraft Status-Bot v${config.version} startet …`);
+// Zuerst den Zustand laden: Er enthält die Standards älterer Installationen (z. B. Sprache Deutsch).
+const state = loadState();
+applyStoredDefaults(state.storedDefaults);
+setLanguage(config.language);
+
+log.info(t('log.starting', { version: config.version }));
+log.info(t('log.language', { language: t(`language.${config.language}`), source: config.languageSource }));
 
 const { errors, warnings } = validateConfig();
 warnings.forEach((w) => log.warn(w));
 if (errors.length) {
   errors.forEach((e) => log.error(e));
-  log.error('Bitte die .env korrigieren und den Bot neu starten.');
+  log.error(t('log.fixConfig'));
   process.exit(EXIT_CONFIG_ERROR);
 }
 
-const state = loadState();
 const monitor = new Monitor(config);
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -52,9 +58,10 @@ const save = () => {
   try {
     saveState(state);
   } catch (err) {
-    log.error('state.json konnte nicht gespeichert werden:', err.message);
+    log.error(t('log.stateSaveFailed'), err.message);
   }
 };
+save(); // schreibt eine Umstellung von state.json auf das neue Format sofort
 
 const restartManager = new RestartManager({
   config,
@@ -87,10 +94,7 @@ const quoteNotes = (notes) => (notes
   : '');
 
 async function restartForUpdate(result) {
-  await sendAlert({
-    text: `⬆️ **Status-Bot wird auf v${result.version} aktualisiert** (bisher v${config.version}). `
-      + 'Der Bot startet kurz neu, der Minecraft-Server läuft weiter.',
-  });
+  await sendAlert({ type: 'update', text: t('alert.botUpdating', { version: result.version, current: config.version }) });
   shutdown('Update', EXIT_UPDATE_INSTALLED);
 }
 
@@ -100,8 +104,8 @@ async function confirmUpdateHealthy() {
   healthConfirmed = true;
   const pending = updater.confirmHealthy();
   if (pending) {
-    log.info(`Update auf v${pending.to} erfolgreich.`);
-    await sendAlert({ text: `✅ **Status-Bot läuft jetzt mit v${pending.to}.**${quoteNotes(pending.notes)}` });
+    log.info(t('log.updateSucceeded', { version: pending.to }));
+    await sendAlert({ type: 'update', text: t('alert.botUpdated', { version: pending.to }) + quoteNotes(pending.notes) });
   }
 }
 
@@ -110,12 +114,12 @@ const dayFormat = new Intl.DateTimeFormat('sv-SE', {
 });
 
 const DISCORD_ERRORS = {
-  10003: 'Der Channel existiert nicht mehr.',
-  10008: 'Die Nachricht existiert nicht mehr.',
-  50001: 'Dem Bot fehlt der Zugriff auf den Channel (Recht „Kanal ansehen“).',
-  50013: 'Dem Bot fehlen Rechte im Channel (Nachrichten senden, Links einbetten, Nachrichtenverlauf lesen).',
+  10003: 'discord.unknownChannel',
+  10008: 'discord.unknownMessage',
+  50001: 'discord.missingAccess',
+  50013: 'discord.missingPermissions',
 };
-const describeDiscordError = (err) => DISCORD_ERRORS[err?.code] ?? err?.message ?? String(err);
+const describeDiscordError = (err) => (DISCORD_ERRORS[err?.code] ? t(DISCORD_ERRORS[err.code]) : err?.message ?? String(err));
 
 // ---------------------------------------------------------------------------
 // Status-Nachricht
@@ -137,7 +141,7 @@ async function publishNow(embed) {
     channel = await client.channels.fetch(state.statusChannelId);
   } catch (err) {
     if (err.code === 10003) {
-      log.warn('Der Status-Kanal wurde gelöscht – in Discord „/mc bot status-channel“ erneut ausführen.');
+      log.warn(t('log.statusChannelDeleted'));
       state.statusChannelId = null;
       state.statusMessageId = null;
       save();
@@ -152,13 +156,13 @@ async function publishNow(embed) {
       return;
     } catch (err) {
       if (err.code !== 10008) throw err;
-      log.warn('Die Status-Nachricht wurde gelöscht – poste sie neu.');
+      log.warn(t('log.statusMessageDeleted'));
     }
   }
   const message = await channel.send({ embeds: [embed] });
   state.statusMessageId = message.id;
   save();
-  log.info(`Status-Nachricht in #${channel.name} gepostet.`);
+  log.info(t('log.statusMessagePosted', { channel: channel.name }));
 }
 
 /** Aktualisiert Nachricht und Präsenz. Liefert eine Fehlerbeschreibung oder null. */
@@ -176,14 +180,14 @@ async function refreshStatus(force = false) {
     lastSignature = signature;
     lastEditAt = now;
     if (lastPublishError) {
-      log.info('Die Status-Nachricht wird wieder aktualisiert.');
+      log.info(t('log.statusMessageWorking'));
       lastPublishError = null;
     }
     return null;
   } catch (err) {
     const message = describeDiscordError(err);
     if (message !== lastPublishError) {
-      log.error(`Status-Nachricht konnte nicht aktualisiert werden: ${message}`);
+      log.error(t('log.statusMessageFailed', { error: message }));
       lastPublishError = message;
     }
     return message;
@@ -208,7 +212,7 @@ async function moveStatusMessage(channelId) {
 }
 
 function updatePresence(snapshot) {
-  if (!client.user) return;
+  if (!client.user || !config.showPresence) return;
   const presence = presenceFor(snapshot, state);
   const key = JSON.stringify(presence);
   if (key === lastPresenceKey) return;
@@ -223,8 +227,18 @@ function updatePresence(snapshot) {
 // Meldungen
 // ---------------------------------------------------------------------------
 
-async function sendAlert({ text, ping = false }) {
+// Meldungstypen, die sich per .env abschalten lassen. Alles andere (z. B. 'problem') wird immer gesendet.
+const ALERT_SWITCHES = {
+  offline: () => config.alertOffline,
+  records: () => config.alertRecords,
+  restart: () => config.alertRestarts,
+  update: () => config.alertBotUpdates,
+  join: () => config.alertJoinLeave,
+};
+
+async function sendAlert({ text, type = 'problem', ping = false }) {
   if (!state.alertChannelId) return;
+  if (ALERT_SWITCHES[type] && !ALERT_SWITCHES[type]()) return;
   const roleId = ping ? state.alertRoleId : null;
   try {
     const channel = await client.channels.fetch(state.alertChannelId);
@@ -233,7 +247,7 @@ async function sendAlert({ text, ping = false }) {
       allowedMentions: { parse: [], roles: roleId ? [roleId] : [] },
     });
   } catch (err) {
-    log.error(`Meldung konnte nicht gesendet werden: ${describeDiscordError(err)}`);
+    log.error(t('log.alertFailed', { error: describeDiscordError(err) }));
   }
 }
 
@@ -258,14 +272,14 @@ async function pollOnce() {
     const resumed = prevStatus === 'unknown' && state.onlineSince && state.stoppedAt
       && now - state.stoppedAt < RESUME_WINDOW_MS;
     if (resumed) {
-      log.info('Server läuft weiterhin.');
+      log.info(t('log.serverStillRunning'));
     } else {
       state.onlineSince = now;
-      log.info('Server ist online.');
+      log.info(t('log.serverOnline'));
       if (state.offlineAlert === 'sent') {
-        alerts.push({ text: `🟢 **${config.serverName} ist wieder online.**`, ping: true });
+        alerts.push({ type: 'offline', text: t('alert.backOnline', { name: config.serverName }), ping: true });
       } else if (prevStatus === 'unknown') {
-        alerts.push({ text: `🟢 **${config.serverName} ist online.**`, ping: true });
+        alerts.push({ type: 'offline', text: t('alert.online', { name: config.serverName }), ping: true });
       }
       // Sonst: kurzer Ausfall (z. B. Neustart) – Status-Nachricht zeigt es, aber kein Ping.
     }
@@ -275,7 +289,7 @@ async function pollOnce() {
   } else if (!up && prevStatus !== 'offline') {
     state.offlineSince = now;
     state.onlineSince = null;
-    log.warn('Server ist offline bzw. nicht erreichbar.');
+    log.warn(t('log.serverOffline'));
     if (prevStatus === 'online' && !restarting) {
       state.offlineAlert = 'pending';
       state.offlinePlayers = prevSnapshot.players.map((p) => p.name);
@@ -286,9 +300,15 @@ async function pollOnce() {
   if (!up && !restarting && state.offlineAlert === 'pending'
     && now - state.offlineSince >= config.offlineAlertMinutes * 60 * 1000) {
     state.offlineAlert = 'sent';
-    const since = config.offlineAlertMinutes ? `seit ${config.offlineAlertMinutes} Min. ` : '';
-    const who = state.offlinePlayers?.length ? ` Zuletzt online: ${state.offlinePlayers.map(escapeMarkdown).join(', ')}` : '';
-    alerts.push({ text: `🔴 **${config.serverName} ist ${since}offline.**${who}`, ping: true });
+    alerts.push({
+      type: 'offline',
+      text: t('alert.offline', {
+        name: config.serverName,
+        minutes: config.offlineAlertMinutes,
+        players: state.offlinePlayers?.length ? state.offlinePlayers.map(escapeMarkdown).join(', ') : null,
+      }),
+      ping: true,
+    });
   }
   // "Online seit" mit der Startzeit des Serverprozesses abgleichen (beim Bot-Start und alle 10 Min.)
   if (up && !state.restart && now - lastUptimeCheck >= UPTIME_CHECK_INTERVAL_MS) {
@@ -296,8 +316,20 @@ async function pollOnce() {
     const processStart = await getListeningProcessStart(config.mcPort, { host: config.mcHost });
     const corrected = correctedOnlineSince(state.onlineSince, processStart);
     if (corrected) {
-      log.info(`"Online seit" korrigiert: Serverprozess läuft seit ${new Date(corrected).toLocaleString('de-DE', { timeZone: config.timezone })}.`);
+      log.info(t('log.onlineSinceCorrected', { time: new Date(corrected).toLocaleString(locale(), { timeZone: config.timezone }) }));
       state.onlineSince = corrected;
+    }
+  }
+
+  // Wer ist gekommen/gegangen? (ALERT_JOIN_LEAVE)
+  if (config.alertJoinLeave && !restarting) {
+    const changes = playerChanges(prevSnapshot, snapshot);
+    if (changes) {
+      const names = (list) => list.map((name) => `**${escapeMarkdown(name)}**`).join(', ');
+      const parts = [];
+      if (changes.joined.length) parts.push(t('alert.joined', { names: names(changes.joined), count: changes.joined.length }));
+      if (changes.left.length) parts.push(t('alert.left', { names: names(changes.left), count: changes.left.length }));
+      alerts.push({ type: 'join', text: parts.join('\n') });
     }
   }
 
@@ -312,9 +344,7 @@ async function pollOnce() {
     const previousRecord = state.record?.count ?? 0;
     if (snapshot.online > previousRecord) {
       state.record = { count: snapshot.online, at: now };
-      if (previousRecord > 0) {
-        alerts.push({ text: `🎉 **Neuer Spielerrekord:** ${snapshot.online} Spieler gleichzeitig online!` });
-      }
+      if (previousRecord > 0) alerts.push({ type: 'records', text: t('alert.newRecord', { count: snapshot.online }) });
     }
   }
 
@@ -329,7 +359,7 @@ async function tick() {
     await pollOnce();
     await confirmUpdateHealthy();
   } catch (err) {
-    log.error('Fehler im Update-Zyklus:', err);
+    log.error(t('log.pollError'), err);
   }
   if (!shuttingDown) pollTimer = setTimeout(tick, config.pollIntervalSec * 1000);
 }
@@ -340,9 +370,9 @@ async function tick() {
 
 async function registerCommands(guild) {
   try {
-    await guild.commands.set(commandData);
+    await guild.commands.set(buildCommandData());
   } catch (err) {
-    log.error(`Slash-Befehle auf „${guild.name}“ konnten nicht registriert werden: ${describeDiscordError(err)}`);
+    log.error(t('log.commandsFailed', { guild: guild.name, error: describeDiscordError(err) }));
   }
 }
 
@@ -355,18 +385,18 @@ async function resolveOwners(readyClient) {
       const id = owner && 'ownerId' in owner ? owner.ownerId : owner?.id;
       ownerIds = id ? [id] : [];
     } catch (err) {
-      log.error(`Bot-Besitzer konnte nicht ermittelt werden (${describeDiscordError(err)}) – /server ist gesperrt.`);
+      log.error(t('log.ownerUnknown', { error: describeDiscordError(err) }));
       ownerIds = [];
     }
   }
   if (ownerIds.length) {
     const names = await Promise.all(ownerIds.map((id) => readyClient.users.fetch(id).then((u) => u.tag, () => '?')));
-    log.info(`Bot-Besitzer: ${ownerIds.map((id, i) => `${names[i]} (${id})`).join(', ')}.`);
+    log.info(t('log.owners', { owners: ownerIds.map((id, i) => `${names[i]} (${id})`).join(', ') }));
   }
 }
 
 client.once(Events.ClientReady, async (readyClient) => {
-  log.info(`Bei Discord angemeldet als ${readyClient.user.tag}.`);
+  log.info(t('log.loggedIn', { tag: readyClient.user.tag }));
   const invite = readyClient.generateInvite({
     scopes: [OAuth2Scopes.Bot, OAuth2Scopes.ApplicationsCommands],
     permissions: [
@@ -377,25 +407,21 @@ client.once(Events.ClientReady, async (readyClient) => {
       PermissionFlagsBits.MentionEveryone,
     ],
   });
-  if (readyClient.guilds.cache.size === 0) {
-    log.warn(`Der Bot ist noch auf keinem Discord-Server. Mit diesem Link einladen:\n  ${invite}`);
-  } else {
-    log.info(`Einladungslink (falls benötigt): ${invite}`);
-  }
+  if (readyClient.guilds.cache.size === 0) log.warn(t('log.noGuild', { invite }));
+  else log.info(t('log.invite', { invite }));
 
   await resolveOwners(readyClient);
   for (const guild of readyClient.guilds.cache.values()) await registerCommands(guild);
-  if (!state.statusChannelId) log.warn('Noch kein Status-Kanal gesetzt – in Discord „/mc bot status-channel“ ausführen.');
+  if (!state.statusChannelId) log.warn(t('log.noStatusChannel'));
 
-  log.info(`Frage ${config.mcHost}:${config.mcPort} alle ${config.pollIntervalSec} s ab${monitor.rconEnabled ? ` (RCON-Port ${config.rconPort})` : ' (nur Status-Ping)'}.`);
+  log.info(t('log.polling', {
+    host: config.mcHost, port: config.mcPort, seconds: config.pollIntervalSec, rconPort: monitor.rconEnabled ? config.rconPort : null,
+  }));
 
   const rolledBack = updater.takeRollbackNotice();
   if (rolledBack) {
-    log.warn(`Update auf v${rolledBack.to} ist fehlgeschlagen, v${rolledBack.from} wurde wiederhergestellt.`);
-    sendAlert({
-      text: `⚠️ **Status-Bot-Update auf v${rolledBack.to} fehlgeschlagen** – die neue Version ist beim Start abgestürzt, `
-        + `v${rolledBack.from} wurde automatisch wiederhergestellt. v${rolledBack.to} wird nicht erneut automatisch installiert.`,
-    });
+    log.warn(t('log.updateRolledBack', rolledBack));
+    sendAlert({ text: t('alert.updateRolledBack', rolledBack) });
   }
   updater.start();
   scheduler.start();
@@ -403,7 +429,7 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 
 client.on(Events.GuildCreate, (guild) => {
-  log.info(`Zu Discord-Server „${guild.name}“ hinzugefügt.`);
+  log.info(t('log.guildJoined', { guild: guild.name }));
   registerCommands(guild);
 });
 
@@ -421,6 +447,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       save,
       getSnapshot: () => monitor.snapshot,
       getRconError: () => monitor.rconError,
+      getTpsCommand: () => monitor.tpsCommand,
       isOwner: (userId) => ownerIds.includes(userId),
       ownerIds: () => ownerIds,
       restart: restartManager,
@@ -432,8 +459,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       refreshStatus: () => refreshStatus(true),
     });
   } catch (err) {
-    log.error(`Fehler bei /${interaction.commandName}:`, err);
-    const content = `❌ Fehler: ${describeDiscordError(err)}`;
+    log.error(t('log.commandError', { command: `/${interaction.commandName}` }), err);
+    const content = t('cmd.error', { error: describeDiscordError(err) });
     if (interaction.deferred || interaction.replied) await interaction.editReply(content).catch(() => {});
     else await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
   }
@@ -449,7 +476,7 @@ async function shutdown(signal, exitCode = 0) {
   clearTimeout(pollTimer);
   updater.stop();
   scheduler.stop();
-  log.info(`Beende Bot (${signal}) …`);
+  log.info(t('log.stopping', { signal }));
   // Windows gibt beim Schließen des Fensters nur wenige Sekunden Zeit.
   setTimeout(() => process.exit(exitCode), 4000);
 
@@ -462,10 +489,10 @@ async function shutdown(signal, exitCode = 0) {
     try {
       if (client.isReady()) {
         await runExclusive(() => publishNow(buildStoppedEmbed({ config })));
-        client.user.setPresence({ status: 'invisible', activities: [] });
+        if (config.showPresence) client.user.setPresence({ status: 'invisible', activities: [] });
       }
     } catch (err) {
-      log.warn(`Konnte die Anzeige nicht auf „beendet“ setzen: ${describeDiscordError(err)}`);
+      log.warn(t('log.stoppedEmbedFailed', { error: describeDiscordError(err) }));
     }
   }
   monitor.close();
@@ -477,17 +504,17 @@ async function shutdown(signal, exitCode = 0) {
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']) {
   process.on(signal, () => shutdown(signal));
 }
-process.on('unhandledRejection', (err) => log.error('Unbehandelter Fehler:', err));
+process.on('unhandledRejection', (err) => log.error(t('log.unhandled'), err));
 process.on('uncaughtException', (err) => {
-  log.error('Absturz:', err);
+  log.error(t('log.crash'), err);
   process.exit(1);
 });
 
 client.login(config.discordToken).catch((err) => {
   if (err.code === 'TokenInvalid' || err.status === 401) {
-    log.error('DISCORD_TOKEN ist ungültig. Im Developer Portal unter „Bot“ → „Reset Token“ einen neuen erzeugen und in die .env eintragen.');
+    log.error(t('log.tokenInvalid'));
     process.exit(EXIT_CONFIG_ERROR);
   }
-  log.error('Anmeldung bei Discord fehlgeschlagen:', err);
+  log.error(t('log.loginFailed'), err);
   process.exit(1);
 });

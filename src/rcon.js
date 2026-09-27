@@ -1,4 +1,5 @@
 import net from 'node:net';
+import { t } from './i18n.js';
 
 // Minimaler RCON-Client für den Vanilla-/NeoForge-Server.
 //
@@ -40,7 +41,7 @@ export class RconClient {
   }
 
   close() {
-    this.#destroy(new RconError('RCON-Verbindung geschlossen'));
+    this.#destroy(new RconError(t('rcon.closed')));
   }
 
   async #exec(command) {
@@ -63,7 +64,7 @@ export class RconClient {
           resolve(parts.join(''));
         }
       },
-    }, `RCON antwortet nicht auf "${command}" (Timeout)`);
+    }, t('rcon.commandTimeout', { command }));
   }
 
   async #ensureConnected() {
@@ -74,7 +75,7 @@ export class RconClient {
       const s = net.createConnection({ host: this.host, port: this.port });
       const timer = setTimeout(() => {
         s.destroy();
-        reject(new RconError(`Keine Verbindung zu RCON ${this.host}:${this.port} (Timeout)`));
+        reject(new RconError(t('rcon.connectFailed', { host: this.host, port: this.port, reason: 'Timeout' })));
       }, this.timeoutMs);
       s.once('connect', () => {
         clearTimeout(timer);
@@ -82,7 +83,7 @@ export class RconClient {
       });
       s.once('error', (err) => {
         clearTimeout(timer);
-        reject(new RconError(`Keine Verbindung zu RCON ${this.host}:${this.port} (${err.code ?? err.message})`));
+        reject(new RconError(t('rcon.connectFailed', { host: this.host, port: this.port, reason: err.code ?? err.message })));
       });
     });
 
@@ -90,7 +91,7 @@ export class RconClient {
     socket.on('data', (chunk) => this.#onData(chunk));
     socket.on('error', () => {}); // Wird über 'close' behandelt.
     socket.on('close', () => {
-      if (this.#socket === socket) this.#destroy(new RconError('RCON-Verbindung wurde vom Server getrennt'));
+      if (this.#socket === socket) this.#destroy(new RconError(t('rcon.disconnected')));
     });
     this.#socket = socket;
 
@@ -99,10 +100,10 @@ export class RconClient {
       await this.#awaitPackets({
         start: () => this.#send(authId, TYPE_AUTH, this.password),
         packet: (pkt, resolve, reject) => {
-          if (pkt.id === -1) reject(new RconError('RCON-Passwort ist falsch (RCON_PASSWORD mit rcon.password in der server.properties vergleichen)'));
+          if (pkt.id === -1) reject(new RconError(t('rcon.wrongPassword')));
           else if (pkt.id === authId) resolve();
         },
-      }, 'RCON-Anmeldung: keine Antwort (Timeout)');
+      }, t('rcon.authTimeout'));
     } catch (err) {
       this.#destroy();
       throw err;
@@ -149,7 +150,7 @@ export class RconClient {
     while (this.#buffer.length >= 4) {
       const length = this.#buffer.readInt32LE(0);
       if (length < 10 || length > 1_048_576) {
-        this.#destroy(new RconError('Ungültiges RCON-Paket empfangen'));
+        this.#destroy(new RconError(t('rcon.invalidPacket')));
         return;
       }
       if (this.#buffer.length < 4 + length) return;
@@ -163,7 +164,7 @@ export class RconClient {
     }
   }
 
-  #destroy(reason = new RconError('RCON-Verbindung geschlossen')) {
+  #destroy(reason = new RconError(t('rcon.closed'))) {
     const socket = this.#socket;
     this.#socket = null;
     this.#authed = false;

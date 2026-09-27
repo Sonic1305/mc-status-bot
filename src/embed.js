@@ -1,4 +1,5 @@
 import { EmbedBuilder, escapeMarkdown } from 'discord.js';
+import { locale, t } from './i18n.js';
 
 const COLORS = {
   online: 0x2ecc71,
@@ -8,8 +9,11 @@ const COLORS = {
   stopped: 0x4f545c,
   restarting: 0x3498db,
 };
-const MAX_LISTED_PLAYERS = 40;
+const DEFAULT_MAX_LISTED_PLAYERS = 40;
 const TPS_EMOJI = { good: '🟢', ok: '🟡', bad: '🔴' };
+
+// Anzeige-Schalter (SHOW_*): fehlt ein Wert, wird das Feld gezeigt.
+const on = (flag) => flag !== false;
 
 /** Discord-Zeitstempel: wird bei jedem Betrachter live in dessen Zeitzone angezeigt ("vor 2 Minuten"). */
 export const discordTime = (ms, style = 'R') => `<t:${Math.floor(ms / 1000)}:${style}>`;
@@ -21,47 +25,54 @@ function tpsBucket(tps) {
   return 'bad';
 }
 
-function playerList(snapshot) {
-  if (snapshot.online === 0) return '_Gerade ist niemand online._';
+function playerList(snapshot, config) {
+  if (snapshot.online === 0) return t('embed.nobodyOnline');
   const names = snapshot.players
     .map((p) => p.name)
-    .sort((a, b) => a.localeCompare(b, 'de', { sensitivity: 'base' }));
-  const lines = names.slice(0, MAX_LISTED_PLAYERS).map((name) => `• ${escapeMarkdown(name)}`);
+    .sort((a, b) => a.localeCompare(b, locale(), { sensitivity: 'base' }));
+  const lines = names.slice(0, config.maxListedPlayers ?? DEFAULT_MAX_LISTED_PLAYERS).map((name) => `• ${escapeMarkdown(name)}`);
   const hidden = snapshot.online - lines.length;
-  if (hidden > 0) lines.push(`_… und ${hidden} weitere_`);
+  if (hidden > 0) lines.push(t('embed.morePlayers', { count: hidden }));
   return lines.join('\n');
 }
 
 function connectField(config) {
   const lines = [];
-  if (config.radminNetwork) lines.push(`Radmin-Netzwerk: \`${config.radminNetwork}\``);
-  if (config.radminPassword) lines.push(`Passwort: \`${config.radminPassword}\``);
-  if (config.connectAddress) lines.push(`Adresse: \`${config.connectAddress}\``);
+  if (config.vpnNetwork) lines.push(`${t('embed.connect.network')}: \`${config.vpnNetwork}\``);
+  if (config.vpnPassword) lines.push(`${t('embed.connect.password')}: \`${config.vpnPassword}\``);
+  if (config.connectAddress) lines.push(`${t('embed.connect.address')}: \`${config.connectAddress}\``);
   if (lines.length === 0) return null;
-  const name = config.radminNetwork || config.radminPassword ? '🔗 Verbinden (Radmin VPN)' : '🔗 Verbinden';
-  return { name, value: lines.join('\n'), inline: false };
+  return { name: t('embed.connect.title', { vpn: config.vpnName }), value: lines.join('\n'), inline: false };
 }
 
 function recordField(state) {
-  const record = state.record?.count ?? 0;
   const at = state.record?.at ? ` (${discordTime(state.record.at, 'd')})` : '';
-  return { name: '📈 Rekorde', value: `Heute: **${state.peakToday?.count ?? 0}** · Allzeit: **${record}**${at}`, inline: true };
+  return {
+    name: t('embed.records.title'),
+    value: t('embed.records.value', { today: state.peakToday?.count ?? 0, allTime: state.record?.count ?? 0, at }),
+    inline: true,
+  };
 }
 
 function updatedField(config, now) {
   // Wenn der Host-PC hart ausgeht, kann der Bot nichts mehr ändern.
   // Diese Zeile verrät dann, dass die Anzeige veraltet ist.
   const staleMinutes = Math.ceil((config.heartbeatSec + config.pollIntervalSec) / 60) + 1;
-  return {
-    name: '🔄 Aktualisiert',
-    value: `${discordTime(now)}\n_Länger als ${staleMinutes} Min. her? Dann sind Host-PC oder Bot aus._`,
-    inline: false,
-  };
+  return { name: t('embed.updated.title'), value: t('embed.updated.value', { time: discordTime(now), minutes: staleMinutes }), inline: false };
+}
+
+/** Felder, die in jeder Ansicht unten stehen (Rekorde, "Aktualisiert"). */
+function footerFields(state, config, now) {
+  const fields = [];
+  if (on(config.showRecords)) fields.push(recordField(state));
+  if (on(config.showLastUpdated)) fields.push(updatedField(config, now));
+  return fields;
 }
 
 /** nextRestart: nächster geplanter Neustart ({ at }) oder null */
 export function buildStatusEmbed({ snapshot, state, config, now = Date.now(), nextRestart = null }) {
   const embed = new EmbedBuilder().setTimestamp(now);
+  if (config.thumbnailUrl) embed.setThumbnail(config.thumbnailUrl);
   const name = config.serverName;
   const version = config.versionText || snapshot.version;
   const restart = state.restart;
@@ -69,75 +80,74 @@ export function buildStatusEmbed({ snapshot, state, config, now = Date.now(), ne
   if (restart?.phase === 'restarting') {
     return embed
       .setColor(COLORS.restarting)
-      .setTitle(`🔄 ${name} startet neu`)
-      .setDescription(
-        `Neustart ausgelöst von **${escapeMarkdown(restart.byName ?? '?')}** ${discordTime(restart.stopSentAt ?? now)}.\n`
-        + 'Der Server ist in ein paar Minuten wieder da.',
-      )
-      .addFields(recordField(state), updatedField(config, now));
+      .setTitle(t('embed.restarting.title', { name }))
+      .setDescription(t('embed.restarting.description', { by: escapeMarkdown(restart.byName ?? '?'), time: discordTime(restart.stopSentAt ?? now) }))
+      .addFields(footerFields(state, config, now));
   }
 
   if (snapshot.status === 'unknown') {
     return embed
       .setColor(COLORS.unknown)
-      .setTitle(`⏳ ${name} – Status wird abgefragt …`)
-      .setDescription('Der Bot ist gerade gestartet und fragt den Server ab.')
-      .addFields(updatedField(config, now));
+      .setTitle(t('embed.unknown.title', { name }))
+      .setDescription(t('embed.unknown.description'))
+      .addFields(on(config.showLastUpdated) ? [updatedField(config, now)] : []);
   }
 
   if (snapshot.status === 'offline') {
-    const since = state.offlineSince ? `\nOffline seit ${discordTime(state.offlineSince)}.` : '';
     return embed
       .setColor(COLORS.offline)
-      .setTitle(`🔴 ${name} ist offline`)
-      .setDescription(`Der Server ist gerade nicht erreichbar.${since}`)
-      .addFields(recordField(state), updatedField(config, now));
+      .setTitle(t('embed.offline.title', { name }))
+      .setDescription(t('embed.offline.description', { since: state.offlineSince ? discordTime(state.offlineSince) : null }))
+      .addFields(footerFields(state, config, now));
   }
 
   const degraded = snapshot.status === 'degraded';
-  let description = `**👥 Spieler: ${snapshot.online} / ${snapshot.max}**\n${playerList(snapshot)}`;
+  const parts = [];
   if (restart?.phase === 'countdown') {
-    description = `🔄 **Neustart ${discordTime(restart.stopAt)}** (geplant von ${escapeMarkdown(restart.byName ?? '?')})\n\n${description}`;
+    parts.push(t('embed.countdown', { time: discordTime(restart.stopAt), by: escapeMarkdown(restart.byName ?? '?') }));
   }
-  if (degraded) {
-    description += '\n\n⚠️ _RCON antwortet gerade nicht (starker Lag oder falsches RCON-Passwort). Die Namensliste ist evtl. unvollständig._';
+  if (config.showMotd && snapshot.motd) { // MOTD ist standardmäßig aus
+    parts.push(snapshot.motd.split('\n').map((line) => `> ${escapeMarkdown(line.trim())}`).join('\n'));
   }
+  const playerHeader = t('embed.players', { online: snapshot.online, max: snapshot.max });
+  parts.push(on(config.showPlayerList) ? `${playerHeader}\n${playerList(snapshot, config)}` : playerHeader);
+  if (degraded) parts.push(t('embed.degradedHint'));
 
   const fields = [];
-  if (config.showTps && snapshot.tps != null) {
-    const mspt = snapshot.mspt != null ? ` · ${Math.round(snapshot.mspt)} ms/Tick` : '';
-    fields.push({ name: '⚡ Leistung', value: `${TPS_EMOJI[tpsBucket(snapshot.tps)]} **${snapshot.tps.toFixed(1)}** TPS${mspt}`, inline: true });
+  if (on(config.showTps) && snapshot.tps != null) {
+    const mspt = snapshot.mspt != null ? t('embed.performance.mspt', { mspt: Math.round(snapshot.mspt) }) : '';
+    fields.push({ name: t('embed.performance.title'), value: `${TPS_EMOJI[tpsBucket(snapshot.tps)]} **${snapshot.tps.toFixed(1)}** TPS${mspt}`, inline: true });
   }
-  if (state.onlineSince) fields.push({ name: '⏱️ Online seit', value: discordTime(state.onlineSince), inline: true });
-  if (version) fields.push({ name: '📦 Version', value: escapeMarkdown(version), inline: true });
-  fields.push(recordField(state));
-  if (nextRestart && config.restartSchedule?.length) {
+  if (on(config.showUptime) && state.onlineSince) fields.push({ name: t('embed.onlineSince'), value: discordTime(state.onlineSince), inline: true });
+  if (on(config.showVersion) && version) fields.push({ name: t('embed.version'), value: escapeMarkdown(version), inline: true });
+  if (on(config.showRecords)) fields.push(recordField(state));
+  if (on(config.showNextRestart) && nextRestart && config.restartSchedule?.length) {
     fields.push({
-      name: '🔄 Täglicher Neustart',
-      value: `${config.restartSchedule.map((t) => t.label).join(', ')} · nächster ${discordTime(nextRestart.at)}`,
+      name: t('embed.dailyRestart.title'),
+      value: t('embed.dailyRestart.value', { times: config.restartSchedule.map((x) => x.label).join(', '), next: discordTime(nextRestart.at) }),
       inline: true,
     });
   }
   const connect = connectField(config);
   if (connect) fields.push(connect);
-  fields.push(updatedField(config, now));
+  if (config.infoText) fields.push({ name: t('embed.info'), value: config.infoText.slice(0, 1024), inline: false });
+  if (on(config.showLastUpdated)) fields.push(updatedField(config, now));
 
   return embed
     .setColor(degraded ? COLORS.degraded : COLORS.online)
-    .setTitle(degraded ? `🟡 ${name} ist online (eingeschränkt)` : `🟢 ${name} ist online`)
-    .setDescription(description)
+    .setTitle(t(degraded ? 'embed.degraded.title' : 'embed.online.title', { name }))
+    .setDescription(parts.join('\n\n'))
     .addFields(fields);
 }
 
 export function buildStoppedEmbed({ config, now = Date.now() }) {
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setTimestamp(now)
     .setColor(COLORS.stopped)
-    .setTitle(`⚫ ${config.serverName} – Status unbekannt`)
-    .setDescription(
-      `Der Status-Bot wurde ${discordTime(now)} beendet (Host-PC aus oder Bot gestoppt).\n`
-      + 'Sobald der Bot wieder läuft, geht die Live-Anzeige weiter.',
-    );
+    .setTitle(t('embed.stopped.title', { name: config.serverName }))
+    .setDescription(t('embed.stopped.description', { time: discordTime(now) }));
+  if (config.thumbnailUrl) embed.setThumbnail(config.thumbnailUrl);
+  return embed;
 }
 
 /**
@@ -151,8 +161,9 @@ export function statusSignature(snapshot, state, config) {
     snapshot.max,
     snapshot.players.map((p) => p.name).sort(),
     snapshot.namesComplete,
-    config.showTps ? tpsBucket(snapshot.tps) : null,
+    on(config.showTps) ? tpsBucket(snapshot.tps) : null,
     snapshot.version,
+    config.showMotd ? snapshot.motd : null,
     state.onlineSince,
     state.offlineSince,
     state.peakToday?.count,
@@ -163,15 +174,15 @@ export function statusSignature(snapshot, state, config) {
 }
 
 export function presenceFor(snapshot, state = {}) {
-  if (state.restart?.phase === 'restarting') return { status: 'idle', text: '🔄 Neustart läuft' };
+  if (state.restart?.phase === 'restarting') return { status: 'idle', text: t('presence.restarting') };
   switch (snapshot.status) {
     case 'online':
-      return { status: 'online', text: `🟢 ${snapshot.online}/${snapshot.max} Spieler online` };
+      return { status: 'online', text: t('presence.online', { online: snapshot.online, max: snapshot.max }) };
     case 'degraded':
-      return { status: 'idle', text: `🟡 ${snapshot.online}/${snapshot.max} Spieler online` };
+      return { status: 'idle', text: t('presence.degraded', { online: snapshot.online, max: snapshot.max }) };
     case 'offline':
-      return { status: 'dnd', text: '🔴 Server offline' };
+      return { status: 'dnd', text: t('presence.offline') };
     default:
-      return { status: 'idle', text: '⏳ Status wird abgefragt …' };
+      return { status: 'idle', text: t('presence.unknown') };
   }
 }

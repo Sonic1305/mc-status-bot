@@ -1,4 +1,5 @@
 import net from 'node:net';
+import { t } from './i18n.js';
 
 // Server List Ping: dasselbe, was die Serverliste im Minecraft-Client macht.
 // Funktioniert ohne RCON, liefert aber höchstens eine Stichprobe von ~12 Namen.
@@ -26,7 +27,7 @@ function readVarInt(buffer, offset) {
     value |= (byte & 0x7f) << shift;
     if ((byte & 0x80) === 0) break;
     shift += 7;
-    if (shift > 28) throw new Error('Ungültige Status-Antwort (VarInt zu lang)');
+    if (shift > 28) throw new Error(t('ping.varIntTooLong'));
   }
   return { value, size: pos - offset };
 }
@@ -63,10 +64,10 @@ export function pingServer(host, port, { timeoutMs = 5000 } = {}) {
       if (err) reject(err);
       else resolve(result);
     };
-    const timer = setTimeout(() => done(new Error(`Status-Ping an ${host}:${port}: Timeout`)), timeoutMs);
+    const timer = setTimeout(() => done(new Error(t('ping.failed', { host, port, reason: 'Timeout' }))), timeoutMs);
 
-    socket.on('error', (err) => done(new Error(`Status-Ping an ${host}:${port}: ${err.code ?? err.message}`)));
-    socket.on('close', () => done(new Error(`Status-Ping an ${host}:${port}: Verbindung vorzeitig getrennt`)));
+    socket.on('error', (err) => done(new Error(t('ping.failed', { host, port, reason: err.code ?? err.message }))));
+    socket.on('close', () => done(new Error(t('ping.failed', { host, port, reason: t('ping.closedEarly') }))));
 
     socket.on('connect', () => {
       const portBuf = Buffer.alloc(2);
@@ -83,7 +84,7 @@ export function pingServer(host, port, { timeoutMs = 5000 } = {}) {
         let offset = length.size;
         const packetId = readVarInt(buffer, offset);
         offset += packetId.size;
-        if (packetId.value !== 0x00) throw new Error(`Unerwartetes Paket 0x${packetId.value.toString(16)}`);
+        if (packetId.value !== 0x00) throw new Error(t('ping.unexpectedPacket', { id: packetId.value.toString(16) }));
         const strLen = readVarInt(buffer, offset);
         offset += strLen.size;
         const json = JSON.parse(buffer.toString('utf8', offset, offset + strLen.value));
@@ -101,7 +102,7 @@ export function pingServer(host, port, { timeoutMs = 5000 } = {}) {
           latencyMs: Date.now() - started,
         });
       } catch (err) {
-        done(new Error(`Status-Ping an ${host}:${port}: ${err.message}`));
+        done(new Error(t('ping.failed', { host, port, reason: err.message })));
       }
     });
   });

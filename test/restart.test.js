@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
+import { setLanguage } from '../src/i18n.js';
 import { announcementSchedule, announcementText, RestartManager } from '../src/restart.js';
+
+// Diese Tests prüfen die deutschen Texte; die englischen stehen in i18n.test.js.
+setLanguage('de');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 

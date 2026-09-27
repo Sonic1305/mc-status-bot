@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 import { log } from './log.js';
 import { countRestartScriptProcesses } from './restart.js';
 
@@ -20,7 +21,7 @@ export function parseSchedule(text) {
   if (!text || !text.trim()) return [];
   const times = text.split(/[,;\s]+/).filter(Boolean).map((part) => {
     const match = TIME_RE.exec(part);
-    if (!match) throw new Error(`"${part}" ist keine Uhrzeit im Format HH:MM`);
+    if (!match) throw Object.assign(new Error(`"${part}" is not a time in HH:MM format`), { part });
     const h = Number(match[1]);
     const m = Number(match[2]);
     return { h, m, label: `${pad(h)}:${pad(m)}` };
@@ -84,7 +85,7 @@ export class RestartScheduler {
   }
 
   get enabled() {
-    return this.schedule.length > 0;
+    return this.schedule.length > 0 && this.config.restartEnabled !== false;
   }
 
   /** Nächster geplanter Neustart ({ at, label }) oder null. */
@@ -95,10 +96,11 @@ export class RestartScheduler {
   start() {
     if (!this.enabled) return;
     this.#upcoming = nextSlot(this.schedule, this.config.timezone, this.now());
-    log.info(`Geplante Neustarts: täglich ${this.schedule.map((t) => t.label).join(', ')} (${this.config.timezone}), `
-      + `${this.config.restartScheduleCountdown} Min. Vorwarnung.`);
+    log.info(t('log.scheduleActive', {
+      times: this.schedule.map((x) => x.label).join(', '), timezone: this.config.timezone, countdown: this.config.restartScheduleCountdown,
+    }));
     this.#timer = setInterval(() => {
-      this.tick().catch((err) => log.error('Fehler beim geplanten Neustart:', err));
+      this.tick().catch((err) => log.error(t('log.scheduleError'), err));
     }, CHECK_INTERVAL_MS);
   }
 
@@ -120,21 +122,21 @@ export class RestartScheduler {
     this.save();
 
     if (now > slot.at + MISSED_GRACE_MS) {
-      log.warn(`Geplanter Neustart ${slot.label} verpasst (Bot war nicht aktiv) – ausgelassen.`);
+      log.warn(t('log.scheduleMissed', { time: slot.label }));
       return;
     }
 
     const skip = await this.#skipReason(now);
     if (skip) {
-      log.warn(`Geplanter Neustart ${slot.label} ausgelassen: ${skip.text}`);
-      if (skip.alert) this.notify({ text: `⚠️ **Geplanter Neustart ${slot.label} ausgelassen:** ${skip.text}` });
+      log.warn(t('log.scheduleSkipped', { time: slot.label, reason: skip.text }));
+      if (skip.alert) this.notify({ type: 'problem', text: t('alert.scheduleSkipped', { time: slot.label, reason: skip.text }) });
       return;
     }
 
     const minutes = Math.max(0, Math.min(this.config.restartScheduleCountdown, Math.round((slot.at - now) / 60000)));
-    const error = this.restartManager.start({ minutes, userId: null, userName: `Zeitplan (${slot.label})`, quiet: true });
-    if (error) log.warn(`Geplanter Neustart ${slot.label} nicht möglich: ${error}`);
-    else log.info(`Geplanter Neustart ${slot.label}: Countdown läuft (${minutes} Min.).`);
+    const error = this.restartManager.start({ minutes, userId: null, userName: t('schedule.byName', { time: slot.label }), quiet: true });
+    if (error) log.warn(t('log.scheduleFailed', { time: slot.label, error }));
+    else log.info(t('log.scheduleStarted', { time: slot.label, minutes }));
   }
 
   async #skipReason(now) {
@@ -142,16 +144,14 @@ export class RestartScheduler {
     if (blocked) return { text: blocked };
     const since = this.state.onlineSince;
     if (since && now - since < MIN_UPTIME_MS) {
-      return { text: `Der Server läuft erst seit ${Math.max(1, Math.round((now - since) / 60000))} Min.` };
+      return { text: t('schedule.justStarted', { minutes: Math.max(1, Math.round((now - since) / 60000)) }) };
     }
-    const running = await this.countScript(this.config.restartScriptName);
-    if (!running) {
-      return {
-        text: `\`${this.config.restartScriptName}\` läuft nicht – der Server wäre nach dem Herunterfahren aus geblieben. `
-          + 'Den Server einmal über dieses Skript starten.',
-        alert: true,
-      };
-    }
+    // RESTART_SCRIPT_NAME=none: Ein Dienst/Panel startet den Server neu – nichts zu prüfen.
+    const script = this.config.restartScriptName;
+    if (script === null) return null;
+    const running = await this.countScript(script);
+    if (running === 0) return { text: t('schedule.scriptNotRunning', { script }), alert: true };
+    if (running === null) return { text: t('schedule.scriptUncheckable', { script }), alert: true };
     return null;
   }
 }

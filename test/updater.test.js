@@ -4,7 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { setLanguage } from '../src/i18n.js';
 import { compareVersions, dependencyFingerprint, isSafeUpdatePath, sha256, Updater, validateManifest } from '../src/updater.js';
+
+// Diese Tests prüfen die deutschen Texte; die englischen stehen in i18n.test.js.
+setLanguage('de');
 
 const REPO = 'tester/mc-status-bot';
 const config = { updateRepo: REPO, autoUpdate: true, updateCheckHours: 6 };

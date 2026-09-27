@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import util from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { t } from './i18n.js';
 
 // Schreibt jede Zeile in die Konsole und zusätzlich nach logs/bot.log,
 // damit man auch nach einem Absturz noch nachlesen kann, was passiert ist.
@@ -27,8 +28,10 @@ function format(arg) {
 }
 
 function write(level, args) {
-  const line = `[${stampFormat.format(new Date())}] ${level} ${args.map(format).join(' ')}`;
-  (level === 'FEHLER' ? console.error : console.log)(line);
+  const labels = ['info', 'warn', 'error'].map((l) => t(`log.level.${l}`));
+  const width = Math.max(...labels.map((l) => l.length));
+  const line = `[${stampFormat.format(new Date())}] ${t(`log.level.${level}`).padEnd(width)} ${args.map(format).join(' ')}`;
+  (level === 'error' ? console.error : console.log)(line);
   try {
     if (fs.existsSync(LOG_FILE) && fs.statSync(LOG_FILE).size > MAX_LOG_BYTES) {
       fs.renameSync(LOG_FILE, `${LOG_FILE}.old`);
@@ -40,7 +43,7 @@ function write(level, args) {
 }
 
 export const log = {
-  info: (...args) => write('INFO  ', args),
-  warn: (...args) => write('WARNUNG', args),
-  error: (...args) => write('FEHLER', args),
+  info: (...args) => write('info', args),
+  warn: (...args) => write('warn', args),
+  error: (...args) => write('error', args),
 };

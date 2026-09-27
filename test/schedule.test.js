@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { setLanguage } from '../src/i18n.js';
 import { nextSlot, parseSchedule, RestartScheduler, zonedTimeToUtc } from '../src/schedule.js';
+
+// Diese Tests prüfen die deutschen Texte; die englischen stehen in i18n.test.js.
+setLanguage('de');
 
 const TZ = 'Europe/Berlin';
 const iso = (ms) => new Date(ms).toISOString();
@@ -8,8 +12,8 @@ const iso = (ms) => new Date(ms).toISOString();
 test('Zeitplan einlesen', () => {
   assert.deepEqual(parseSchedule(''), []);
   assert.deepEqual(parseSchedule('16:30, 4:00;04:00').map((t) => t.label), ['04:00', '16:30']);
-  assert.throws(() => parseSchedule('25:00'), /keine Uhrzeit/);
-  assert.throws(() => parseSchedule('4 Uhr'), /keine Uhrzeit/);
+  assert.throws(() => parseSchedule('25:00'), (err) => err.part === '25:00');
+  assert.throws(() => parseSchedule('4 Uhr'), /HH:MM/);
 });
 
 test('Ortszeit -> UTC, auch über die Zeitumstellung', () => {

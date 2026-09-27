@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord.js';
-import { BASE_COMMAND, commandData, handleCommand } from '../src/commands.js';
+import { BASE_COMMAND, buildCommandData, handleCommand } from '../src/commands.js';
+import { setLanguage } from '../src/i18n.js';
 import { emptySnapshot } from '../src/monitor.js';
+
+// Diese Tests prüfen die deutschen Texte; die englischen stehen in i18n.test.js.
+setLanguage('de');
 
 const OWNER = '111111111111111111';
 
 test('Ein Basisbefehl /mc mit server- und bot-Gruppe, für alle sichtbar', () => {
+  const commandData = buildCommandData();
   assert.equal(commandData.length, 1);
   const [mc] = commandData;
   assert.equal(mc.name, BASE_COMMAND);

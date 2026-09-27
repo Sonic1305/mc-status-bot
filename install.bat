@@ -4,16 +4,16 @@ cd /d "%~dp0"
 
 where node >nul 2>&1
 if errorlevel 1 (
-  echo [FEHLER] Node.js ist nicht installiert.
-  echo Bitte von https://nodejs.org die LTS-Version installieren und danach install.bat erneut starten.
+  echo [ERROR] Node.js is not installed.
+  echo Please install the LTS version from https://nodejs.org and then run install.bat again.
   pause
   exit /b 1
 )
 
-echo Installiere Abhaengigkeiten ...
+echo Installing dependencies ...
 call npm install --omit=dev --no-audit --no-fund
 if errorlevel 1 (
-  echo [FEHLER] Installation fehlgeschlagen - siehe Meldungen oben.
+  echo [ERROR] Installation failed - see the messages above.
   pause
   exit /b 1
 )
@@ -21,9 +21,9 @@ if errorlevel 1 (
 if not exist ".env" (
   copy ".env.example" ".env" >nul
   echo.
-  echo Die Datei .env wurde angelegt. Bitte jetzt mit dem Editor oeffnen und ausfuellen.
+  echo The file .env was created. Please open it in a text editor now and fill it in.
 )
 
 echo.
-echo Fertig. Danach den Bot mit start-bot.bat starten.
+echo Done. Then start the bot with start-bot.bat.
 pause

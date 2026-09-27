@@ -11,10 +11,12 @@ import {
   escapeMarkdown,
 } from 'discord.js';
 import { buildStatusEmbed, discordTime } from './embed.js';
+import { getLanguage, t } from './i18n.js';
 import { log } from './log.js';
 import { countRestartScriptProcesses } from './restart.js';
 
-// Alle Befehle hängen an einem Basisbefehl (Namen und Beschreibungen auf Englisch):
+// Alle Befehle hängen an einem Basisbefehl. Die Namen sind immer englisch,
+// die Beschreibungen und Antworten in der Sprache des Bots (LANGUAGE):
 //   /mc status | help                     – für alle
 //   /mc server …                          – betrifft den Minecraft-Server
 //   /mc bot …                             – betrifft den Discord-Bot
@@ -29,64 +31,49 @@ const TEXT_CHANNELS = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
 const channelOption = (description) => (opt) => opt
   .setName('channel').setDescription(description).addChannelTypes(...TEXT_CHANNELS).setRequired(true);
 
-export const commandData = [
-  new SlashCommandBuilder()
-    .setName(BASE_COMMAND)
-    .setDescription('Minecraft server and status bot')
-    .setContexts(InteractionContextType.Guild)
-    .addSubcommand((sub) => sub
-      .setName('status')
-      .setDescription('Current status of the Minecraft server (only visible to you)'))
-    .addSubcommand((sub) => sub
-      .setName('help')
-      .setDescription('Show the commands you are allowed to use'))
-    .addSubcommandGroup((group) => group
-      .setName('server')
-      .setDescription('Control the Minecraft server')
-      .addSubcommand((sub) => sub
-        .setName('restart')
-        .setDescription('Restart the Minecraft server with an in-game countdown (bot owner)')
-        .addIntegerOption((opt) => opt
-          .setName('countdown')
-          .setDescription('Warning time for the players (default: 1 minute)')
-          .addChoices(
-            { name: 'now', value: 0 },
-            { name: '1 minute', value: 1 },
-            { name: '5 minutes', value: 5 },
-            { name: '10 minutes', value: 10 },
-          )))
-      .addSubcommand((sub) => sub
-        .setName('cancel-restart')
-        .setDescription('Cancel a scheduled restart (bot owner)')))
-    .addSubcommandGroup((group) => group
-      .setName('bot')
-      .setDescription('Set up and manage the status bot')
-      .addSubcommand((sub) => sub
-        .setName('status-channel')
-        .setDescription('Post the live status message in a channel (admins)')
-        .addChannelOption(channelOption('Channel for the live status message')))
-      .addSubcommand((sub) => sub
-        .setName('alerts')
-        .setDescription('Send alerts (offline/online, records, problems) to a channel (admins)')
-        .addChannelOption(channelOption('Channel for the alerts'))
-        .addRoleOption((opt) => opt
-          .setName('role')
-          .setDescription('Role to mention when the server goes offline/online (optional)')))
-      .addSubcommand((sub) => sub
-        .setName('alerts-off')
-        .setDescription('Turn alerts off (admins)'))
-      .addSubcommand((sub) => sub
-        .setName('reset-records')
-        .setDescription('Reset the daily and all-time player records (admins)'))
-      .addSubcommand((sub) => sub
-        .setName('info')
-        .setDescription('Version, settings and connection state of the bot (admins)'))
-      .addSubcommand((sub) => sub
-        .setName('update')
-        .setDescription('Check for a new bot version and install it (bot owner)'))),
-].map((command) => command.toJSON());
+/** Befehlsdefinition für Discord (Beschreibungen in der aktiven Sprache). */
+export function buildCommandData() {
+  return [
+    new SlashCommandBuilder()
+      .setName(BASE_COMMAND)
+      .setDescription(t('cmd.desc.base'))
+      .setContexts(InteractionContextType.Guild)
+      .addSubcommand((sub) => sub.setName('status').setDescription(t('cmd.desc.status')))
+      .addSubcommand((sub) => sub.setName('help').setDescription(t('cmd.desc.help')))
+      .addSubcommandGroup((group) => group
+        .setName('server')
+        .setDescription(t('cmd.desc.server'))
+        .addSubcommand((sub) => sub
+          .setName('restart')
+          .setDescription(t('cmd.desc.restart'))
+          .addIntegerOption((opt) => opt
+            .setName('countdown')
+            .setDescription(t('cmd.desc.countdown'))
+            .addChoices(
+              { name: t('cmd.choice.now'), value: 0 },
+              ...[1, 5, 10].map((minutes) => ({ name: t('cmd.choice.minutes', { minutes }), value: minutes })),
+            )))
+        .addSubcommand((sub) => sub.setName('cancel-restart').setDescription(t('cmd.desc.cancelRestart'))))
+      .addSubcommandGroup((group) => group
+        .setName('bot')
+        .setDescription(t('cmd.desc.bot'))
+        .addSubcommand((sub) => sub
+          .setName('status-channel')
+          .setDescription(t('cmd.desc.statusChannel'))
+          .addChannelOption(channelOption(t('cmd.desc.statusChannelOption'))))
+        .addSubcommand((sub) => sub
+          .setName('alerts')
+          .setDescription(t('cmd.desc.alerts'))
+          .addChannelOption(channelOption(t('cmd.desc.alertsChannelOption')))
+          .addRoleOption((opt) => opt.setName('role').setDescription(t('cmd.desc.alertsRoleOption'))))
+        .addSubcommand((sub) => sub.setName('alerts-off').setDescription(t('cmd.desc.alertsOff')))
+        .addSubcommand((sub) => sub.setName('reset-records').setDescription(t('cmd.desc.resetRecords')))
+        .addSubcommand((sub) => sub.setName('info').setDescription(t('cmd.desc.info')))
+        .addSubcommand((sub) => sub.setName('update').setDescription(t('cmd.desc.update')))),
+  ].map((command) => command.toJSON());
+}
 
-// Wer darf was: 'all' = alle, 'admin' = "Server verwalten" oder Bot-Besitzer, 'owner' = nur Bot-Besitzer
+// Wer darf was: 'all' = alle, 'admin' = "Server verwalten", Admin-Rolle oder Bot-Besitzer, 'owner' = nur Bot-Besitzer
 const ACCESS = {
   'status': 'all',
   'help': 'all',
@@ -101,46 +88,50 @@ const ACCESS = {
 };
 
 const HELP = [
-  ['status', 'all', 'Aktueller Serverstatus'],
-  ['server restart [countdown]', 'owner', 'Minecraft-Server neu starten'],
-  ['server cancel-restart', 'owner', 'Geplanten Neustart abbrechen'],
-  ['bot status-channel channel:', 'admin', 'Live-Status-Nachricht anlegen'],
-  ['bot alerts channel: [role:]', 'admin', 'Meldungen einschalten'],
-  ['bot alerts-off', 'admin', 'Meldungen abschalten'],
-  ['bot reset-records', 'admin', 'Spielerrekorde zurücksetzen'],
-  ['bot info', 'admin', 'Einstellungen und Zustand des Bots'],
-  ['bot update', 'owner', 'Bot-Update sofort installieren'],
+  ['status', 'status', 'all'],
+  ['server restart [countdown]', 'restart', 'owner'],
+  ['server cancel-restart', 'cancelRestart', 'owner'],
+  ['bot status-channel channel:', 'statusChannel', 'admin'],
+  ['bot alerts channel: [role:]', 'alerts', 'admin'],
+  ['bot alerts-off', 'alertsOff', 'admin'],
+  ['bot reset-records', 'resetRecords', 'admin'],
+  ['bot info', 'info', 'admin'],
+  ['bot update', 'update', 'owner'],
 ];
 
 const cmd = (path) => `\`/${BASE_COMMAND} ${path}\``;
 
+/** Rollen-IDs des Mitglieds (Gateway: GuildMember, sonst Rohdaten mit einem ID-Array). */
+function memberRoleIds(member) {
+  const roles = member?.roles;
+  if (Array.isArray(roles)) return roles;
+  return roles?.cache ? [...roles.cache.keys()] : [];
+}
+
 function mayUse(interaction, ctx, level) {
   if (level === 'all' || ctx.isOwner(interaction.user.id)) return true;
-  return level === 'admin' && Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild));
+  if (level !== 'admin') return false;
+  if (interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return true;
+  const adminRoles = ctx.config.adminRoleIds ?? [];
+  return adminRoles.length > 0 && memberRoleIds(interaction.member).some((id) => adminRoles.includes(id));
 }
 
 const STATUS_CHANNEL_PERMS = [
-  [PermissionFlagsBits.ViewChannel, 'Kanal ansehen'],
-  [PermissionFlagsBits.SendMessages, 'Nachrichten senden'],
-  [PermissionFlagsBits.EmbedLinks, 'Links einbetten'],
-  [PermissionFlagsBits.ReadMessageHistory, 'Nachrichtenverlauf lesen'],
+  [PermissionFlagsBits.ViewChannel, 'perm.viewChannel'],
+  [PermissionFlagsBits.SendMessages, 'perm.sendMessages'],
+  [PermissionFlagsBits.EmbedLinks, 'perm.embedLinks'],
+  [PermissionFlagsBits.ReadMessageHistory, 'perm.readHistory'],
 ];
 const ALERT_CHANNEL_PERMS = STATUS_CHANNEL_PERMS.slice(0, 2);
 
 function missingPermissions(channel, member, required) {
   const perms = channel.permissionsFor(member);
-  return required.filter(([flag]) => !perms?.has(flag)).map(([, label]) => label);
+  return required.filter(([flag]) => !perms?.has(flag)).map(([, key]) => t(key));
 }
-
-const STATUS_LABEL = {
-  online: '🟢 online',
-  degraded: '🟡 online (eingeschränkt)',
-  offline: '🔴 offline',
-  unknown: '⏳ noch keine Abfrage',
-};
 
 const displayName = (interaction) => interaction.member?.displayName ?? interaction.user.globalName ?? interaction.user.username;
 const ephemeral = { flags: MessageFlags.Ephemeral };
+const yesNo = (value) => (value ? '✅' : '—');
 
 // ---------------------------------------------------------------------------
 // Aktionen
@@ -154,10 +145,11 @@ async function showStatus(interaction, ctx) {
 }
 
 async function showHelp(interaction, ctx) {
+  const restartOff = ctx.config.restartEnabled === false;
   const lines = HELP
-    .filter(([, level]) => mayUse(interaction, ctx, level))
-    .map(([path, , text]) => `${cmd(path)} – ${text}`);
-  await interaction.reply({ content: `**Befehle für dich:**\n${lines.join('\n')}`, ...ephemeral });
+    .filter(([path, , level]) => mayUse(interaction, ctx, level) && !(restartOff && path.startsWith('server ')))
+    .map(([path, key]) => `${cmd(path)} – ${t(`cmd.help.${key}`)}`);
+  await interaction.reply({ content: `${t('cmd.help.title')}\n${lines.join('\n')}`, ...ephemeral });
 }
 
 async function restartServer(interaction, ctx) {
@@ -170,25 +162,22 @@ async function restartServer(interaction, ctx) {
   }
 
   const snapshot = ctx.getSnapshot();
-  const scriptName = ctx.config.restartScriptName;
-  const scriptCount = await countRestartScriptProcesses(scriptName);
+  const script = ctx.config.restartScriptName;
+  const scriptCount = script ? await countRestartScriptProcesses(script) : undefined;
   const names = snapshot.players.map((p) => escapeMarkdown(p.name)).join(', ');
   const lines = [
-    `**${ctx.config.serverName} neu starten?**`,
-    `Countdown: **${minutes ? `${minutes} Min.` : 'sofort'}** · Online: **${snapshot.online}** Spieler${names ? ` (${names})` : ''}`,
+    t('cmd.restart.question', { name: ctx.config.serverName }),
+    t('cmd.restart.summary', { minutes, online: snapshot.online, names }),
   ];
-  if (scriptCount === 0) {
-    lines.push(`\n⚠️ Ich finde kein laufendes \`${scriptName}\`. Wurde der Server anders gestartet (z. B. über run.bat), bleibt er nach dem Herunterfahren **aus**.`);
-  } else if (scriptCount === null) {
-    lines.push(`\n⚠️ Konnte nicht prüfen, ob \`${scriptName}\` läuft. Falls nicht, bleibt der Server nach dem Herunterfahren aus.`);
-  }
+  if (scriptCount === 0) lines.push(`\n${t('cmd.restart.scriptMissing', { script })}`);
+  else if (scriptCount === null) lines.push(`\n${t('cmd.restart.scriptUnknown', { script })}`);
 
   const confirmId = `restart-confirm:${interaction.id}`;
   const cancelId = `restart-cancel:${interaction.id}`;
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(confirmId).setStyle(ButtonStyle.Danger)
-      .setLabel(scriptCount ? 'Neu starten' : 'Trotzdem neu starten'),
-    new ButtonBuilder().setCustomId(cancelId).setStyle(ButtonStyle.Secondary).setLabel('Abbrechen'),
+      .setLabel(t(scriptCount === 0 || scriptCount === null ? 'cmd.restart.confirmAnyway' : 'cmd.restart.confirm')),
+    new ButtonBuilder().setCustomId(cancelId).setStyle(ButtonStyle.Secondary).setLabel(t('cmd.restart.abort')),
   );
   const message = await interaction.editReply({ content: lines.join('\n'), components: [row], allowedMentions: { parse: [] } });
 
@@ -200,42 +189,37 @@ async function restartServer(interaction, ctx) {
       filter: (i) => (i.customId === confirmId || i.customId === cancelId) && ctx.isOwner(i.user.id),
     });
   } catch {
-    await interaction.editReply({ content: '⌛ Keine Bestätigung – kein Neustart.', components: [] });
+    await interaction.editReply({ content: t('cmd.restart.noConfirmation'), components: [] });
     return;
   }
   if (click.customId !== confirmId) {
-    await click.update({ content: 'Abgebrochen – kein Neustart.', components: [] });
+    await click.update({ content: t('cmd.restart.aborted'), components: [] });
     return;
   }
 
   const error = ctx.restart.start({ minutes, userId: click.user.id, userName: displayName(interaction) });
   await click.update({
-    content: error
-      ? `❌ ${error}`
-      : minutes
-        ? `✅ Neustart in ${minutes} Min. geplant – die Spieler werden im Spiel gewarnt. Abbrechen mit ${cmd('server cancel-restart')}.`
-        : '✅ Neustart läuft.',
+    content: error ? `❌ ${error}` : t('cmd.restart.started', { minutes, cancel: cmd('server cancel-restart') }),
     components: [],
   });
 }
 
 async function cancelRestart(interaction, ctx) {
   const error = ctx.restart.cancel({ userName: displayName(interaction) });
-  await interaction.reply({ content: error ? `❌ ${error}` : '✅ Neustart abgebrochen.', ...ephemeral });
+  await interaction.reply({ content: error ? `❌ ${error}` : t('cmd.cancelRestart.done'), ...ephemeral });
 }
 
 async function setStatusChannel(interaction, ctx, { guild, me }) {
   const channel = await guild.channels.fetch(interaction.options.getChannel('channel', true).id);
   const missing = missingPermissions(channel, me, STATUS_CHANNEL_PERMS);
   if (missing.length) {
-    await interaction.editReply(`❌ Mir fehlen in ${channel} diese Rechte: **${missing.join(', ')}**.`);
+    await interaction.editReply(t('cmd.missingPermissions', { channel: `${channel}`, permissions: missing.join(', ') }));
     return;
   }
   const error = await ctx.moveStatusMessage(channel.id);
   await interaction.editReply(error
-    ? `⚠️ Channel gespeichert, aber die Nachricht konnte nicht gepostet werden: ${error}`
-    : `✅ Die Live-Status-Nachricht steht jetzt in ${channel}.\n`
-      + 'Tipp: Stell den Channel für alle anderen auf „nur lesen“, dann bleibt die Nachricht immer ganz unten sichtbar.');
+    ? t('cmd.statusChannel.postFailed', { error })
+    : t('cmd.statusChannel.done', { channel: `${channel}` }));
 }
 
 async function setAlertChannel(interaction, ctx, { guild, me }) {
@@ -243,28 +227,25 @@ async function setAlertChannel(interaction, ctx, { guild, me }) {
   const role = interaction.options.getRole('role');
   const missing = missingPermissions(channel, me, ALERT_CHANNEL_PERMS);
   if (missing.length) {
-    await interaction.editReply(`❌ Mir fehlen in ${channel} diese Rechte: **${missing.join(', ')}**.`);
+    await interaction.editReply(t('cmd.missingPermissions', { channel: `${channel}`, permissions: missing.join(', ') }));
     return;
   }
   if (role && role.id === guild.id) {
-    await interaction.editReply('❌ Bitte eine normale Rolle wählen, nicht @everyone.');
+    await interaction.editReply(t('cmd.alerts.noEveryone'));
     return;
   }
 
   let hint = '';
   if (role && !role.mentionable && !channel.permissionsFor(me)?.has(PermissionFlagsBits.MentionEveryone)) {
-    hint = `\n⚠️ ${role} ist nicht erwähnbar, also würde niemand gepingt. In den Rollen-Einstellungen „Erlauben, dass jeder diese Rolle @erwähnen kann“ einschalten oder dem Bot das Recht „@everyone, @here und alle Rollen erwähnen“ geben.`;
+    hint = `\n${t('cmd.alerts.roleNotMentionable', { role: `${role}` })}`;
   }
 
   ctx.state.alertChannelId = channel.id;
   ctx.state.alertRoleId = role?.id ?? null;
   ctx.save();
-  await channel.send({
-    content: `🔔 Status-Meldungen für **${ctx.config.serverName}** kommen ab jetzt hier an.`,
-    allowedMentions: { parse: [] },
-  });
+  await channel.send({ content: t('cmd.alerts.channelGreeting', { name: ctx.config.serverName }), allowedMentions: { parse: [] } });
   await interaction.editReply({
-    content: `✅ Meldungen gehen jetzt an ${channel}${role ? `, bei Offline/Online wird ${role} erwähnt` : ''}.${hint}`,
+    content: t('cmd.alerts.done', { channel: `${channel}`, role: role ? `${role}` : null }) + hint,
     allowedMentions: { parse: [] },
   });
 }
@@ -273,7 +254,7 @@ async function disableAlerts(interaction, ctx) {
   ctx.state.alertChannelId = null;
   ctx.state.alertRoleId = null;
   ctx.save();
-  await interaction.editReply('🔕 Meldungen sind aus.');
+  await interaction.editReply(t('cmd.alertsOff.done'));
 }
 
 async function resetRecords(interaction, ctx) {
@@ -281,35 +262,64 @@ async function resetRecords(interaction, ctx) {
   ctx.state.record = { count: ctx.getSnapshot().online, at: Date.now() };
   ctx.save();
   await ctx.refreshStatus();
-  await interaction.editReply('✅ Rekorde zurückgesetzt.');
+  await interaction.editReply(t('cmd.resetRecords.done'));
 }
 
 async function showInfo(interaction, ctx) {
   const { config, state } = ctx;
   const snapshot = ctx.getSnapshot();
-  const rconLine = !ctx.rconEnabled
-    ? 'aus (kein RCON_PASSWORD) – nur Status-Ping'
-    : ctx.getRconError() ? `❌ ${ctx.getRconError()}` : '✅ verbunden';
-  const updateLine = !config.updateRepo
-    ? 'kein Repository eingestellt'
-    : `${config.autoUpdate ? `automatisch alle ${config.updateCheckHours} h` : 'aus (AUTO_UPDATE=false)'} · github.com/${config.updateRepo}`;
+  const rconError = ctx.getRconError?.();
+  const tpsCommand = ctx.getTpsCommand?.();
+  const alertTypes = [
+    ['offline', config.alertOffline !== false], ['records', config.alertRecords !== false],
+    ['restarts', config.alertRestarts !== false], ['updates', config.alertBotUpdates !== false],
+    ['joinLeave', config.alertJoinLeave === true],
+  ].filter(([, enabled]) => enabled).map(([key]) => t(`info.alertType.${key}`));
+  const nextRestart = ctx.getNextRestart();
+
   const lines = [
-    `**Version:** v${config.version} · **Updates:** ${updateLine}`,
-    `**Status-Kanal:** ${state.statusChannelId ? `<#${state.statusChannelId}>` : `— noch nicht eingerichtet (${cmd('bot status-channel')})`}`,
-    `**Meldungen:** ${state.alertChannelId ? `<#${state.alertChannelId}>${state.alertRoleId ? ` mit <@&${state.alertRoleId}>` : ''}` : 'aus'}`,
-    `**Server:** \`${config.mcHost}:${config.mcPort}\` · RCON-Port \`${config.rconPort}\``,
-    `**RCON:** ${rconLine}`,
-    `**Letzte Abfrage:** ${snapshot.checkedAt ? discordTime(snapshot.checkedAt) : '—'} → ${STATUS_LABEL[snapshot.status]}`,
-    `**Takt:** Abfrage alle ${config.pollIntervalSec} s · Nachricht spätestens alle ${config.heartbeatSec} s neu`,
-    `**Offline-Meldung:** ${config.offlineAlertMinutes ? `nach ${config.offlineAlertMinutes} Min. Ausfall` : 'sofort'}`,
-    `**Bot-Besitzer:** ${ctx.ownerIds().length ? ctx.ownerIds().map((id) => `<@${id}>`).join(', ') : '— (noch nicht ermittelt)'} · Startskript \`${config.restartScriptName}\``,
-    `**Geplante Neustarts:** ${config.restartSchedule.length
-      ? `täglich ${config.restartSchedule.map((t) => t.label).join(', ')} (${config.restartScheduleCountdown} Min. Vorwarnung)`
-        + (ctx.getNextRestart() ? ` · nächster ${discordTime(ctx.getNextRestart().at)}` : '')
-      : 'aus (`RESTART_SCHEDULE`)'}`,
-    `**Hänger-Absicherung:** ${config.restartKillAfterMinutes ? `Serverprozess wird ${config.restartKillAfterMinutes} Min. nach \`stop\` beendet, falls er hängt` : 'aus'}`,
+    t('info.version', {
+      version: config.version,
+      updates: !config.updateRepo ? t('info.updates.noRepo')
+        : config.autoUpdate ? t('info.updates.auto', { hours: config.updateCheckHours, repo: config.updateRepo })
+          : t('info.updates.off', { repo: config.updateRepo }),
+    }),
+    t('info.language', { language: t(`language.${getLanguage()}`), source: config.languageSource }),
+    t('info.statusChannel', { channel: state.statusChannelId ? `<#${state.statusChannelId}>` : null, command: cmd('bot status-channel') }),
+    t('info.alerts', {
+      channel: state.alertChannelId ? `<#${state.alertChannelId}>` : null,
+      role: state.alertRoleId ? `<@&${state.alertRoleId}>` : null,
+      types: alertTypes.join(', '),
+      offlineMinutes: config.offlineAlertMinutes,
+    }),
+    t('info.server', { host: config.mcHost, port: config.mcPort, rconPort: config.rconPort }),
+    t('info.rcon', { enabled: ctx.rconEnabled, error: rconError }),
+    t('info.tps', { show: config.showTps !== false, command: tpsCommand, mode: config.tpsCommand ?? 'auto' }),
+    t('info.lastPoll', { time: snapshot.checkedAt ? discordTime(snapshot.checkedAt) : null, status: t(`info.status.${snapshot.status}`) }),
+    t('info.timing', { poll: config.pollIntervalSec, heartbeat: config.heartbeatSec }),
+    t('info.access', {
+      owners: ctx.ownerIds().map((id) => `<@${id}>`).join(', '),
+      roles: (config.adminRoleIds ?? []).map((id) => `<@&${id}>`).join(', '),
+    }),
+    t('info.restarts', { enabled: config.restartEnabled !== false, script: config.restartScriptName }),
   ];
-  await interaction.editReply({ content: lines.join('\n'), allowedMentions: { parse: [] } });
+  if (config.restartEnabled !== false) {
+    lines.push(
+      t('info.schedule', {
+        times: config.restartSchedule.map((x) => x.label).join(', '),
+        countdown: config.restartScheduleCountdown,
+        next: nextRestart ? discordTime(nextRestart.at) : null,
+      }),
+      t('info.hangProtection', { minutes: config.restartKillAfterMinutes }),
+    );
+  }
+  lines.push(t('info.display', {
+    items: [
+      ['showPlayerList', 'players'], ['showTps', 'tps'], ['showUptime', 'uptime'], ['showVersion', 'version'],
+      ['showRecords', 'records'], ['showNextRestart', 'nextRestart'], ['showMotd', 'motd'], ['showPresence', 'presence'],
+    ].map(([key, label]) => `${yesNo(key === 'showMotd' ? config[key] : config[key] !== false)} ${t(`info.display.${label}`)}`).join(' · '),
+  }));
+  await interaction.editReply({ content: lines.join('\n').slice(0, 2000), allowedMentions: { parse: [] } });
 }
 
 async function updateBot(interaction, ctx) {
@@ -317,18 +327,16 @@ async function updateBot(interaction, ctx) {
   try {
     result = await ctx.updater.checkAndInstall({ manual: true });
   } catch (err) {
-    await interaction.editReply(`❌ Update fehlgeschlagen: ${err.message}`);
+    await interaction.editReply(t('cmd.update.failed', { error: err.message }));
     return;
   }
   const current = ctx.config.version;
   const messages = {
-    'disabled': result.latest
-      ? `ℹ️ Bot-Version v${result.latest.version} ist verfügbar, aber Auto-Update ist auf dem Host-PC ausgeschaltet (\`AUTO_UPDATE=false\`).`
-      : 'ℹ️ Kein Update-Repository eingestellt.',
-    'none': 'ℹ️ Auf GitHub gibt es noch kein Release des Bots.',
-    'up-to-date': `✅ Der Bot ist aktuell (v${current}).`,
-    'busy': '⏳ Gerade läuft ein Server-Neustart oder eine Installation – bitte später erneut versuchen.',
-    'installed': `⬆️ Bot-Version v${result.version} ist installiert (bisher v${current}) – der Bot startet jetzt neu.`,
+    'disabled': result.latest ? t('cmd.update.disabled', { version: result.latest.version }) : t('cmd.update.noRepo'),
+    'none': t('cmd.update.noRelease'),
+    'up-to-date': t('cmd.update.upToDate', { version: current }),
+    'busy': t('cmd.update.busy'),
+    'installed': t('cmd.update.installed', { version: result.version, current }),
   };
   await interaction.editReply(messages[result.status] ?? `Status: ${result.status}`);
   if (result.status === 'installed') ctx.onUpdateInstalled(result);
@@ -351,7 +359,7 @@ const DIRECT = {
 };
 
 /**
- * ctx: { config, state, save, getSnapshot, getRconError, rconEnabled, moveStatusMessage, refreshStatus,
+ * ctx: { config, state, save, getSnapshot, getRconError, getTpsCommand, rconEnabled, moveStatusMessage, refreshStatus,
  *        isOwner, ownerIds, restart, updater, onUpdateInstalled, getNextRestart }
  */
 export async function handleCommand(interaction, ctx) {
@@ -362,15 +370,8 @@ export async function handleCommand(interaction, ctx) {
   if (!level) return;
 
   if (!mayUse(interaction, ctx, level)) {
-    if (level === 'owner') {
-      log.warn(`/${BASE_COMMAND} ${key} von ${interaction.user.tag} (${interaction.user.id}) abgelehnt – kein Bot-Besitzer.`);
-    }
-    await interaction.reply({
-      content: level === 'owner'
-        ? '⛔ Das darf nur der Bot-Besitzer.'
-        : '⛔ Dafür brauchst du auf diesem Discord-Server das Recht „Server verwalten“.',
-      ...ephemeral,
-    });
+    if (level === 'owner') log.warn(t('log.commandDenied', { command: `/${BASE_COMMAND} ${key}`, user: interaction.user.tag, id: interaction.user.id }));
+    await interaction.reply({ content: t(level === 'owner' ? 'cmd.denied.owner' : 'cmd.denied.admin'), ...ephemeral });
     return;
   }
 

@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildStatusEmbed, buildStoppedEmbed, presenceFor, statusSignature } from '../src/embed.js';
+import { setLanguage } from '../src/i18n.js';
 import { emptySnapshot } from '../src/monitor.js';
+
+// Diese Tests prüfen die deutschen Texte; die englischen stehen in i18n.test.js.
+setLanguage('de');
 
 const config = {
   serverName: 'TNP Limitless 8',
   versionText: 'TNP Limitless 8 v1.73.0',
-  radminNetwork: 'TNP8',
-  radminPassword: '',
+  vpnName: 'Radmin VPN',
+  vpnNetwork: 'TNP8',
+  vpnPassword: '',
   connectAddress: '26.1.2.3:25565',
   showTps: true,
   heartbeatSec: 60,
