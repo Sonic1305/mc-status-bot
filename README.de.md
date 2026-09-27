@@ -84,7 +84,7 @@ Discord kann nur ganze Befehle ausblenden, deshalb sieht jeder alle `/mc`-Unterb
 
 ## Auto-Update
 
-Alle 6 h (oder per `/mc bot update`) holt der Bot das neueste GitHub-Release, prüft jede Datei gegen die SHA-256-Prüfsummen in `release-manifest.json`, sichert die bisherigen Dateien nach `update/backup/`, installiert und startet sich neu. Stürzt die neue Version beim Start ab, stellt `start-bot.bat` die vorherige wieder her und überspringt diese Version. `.env`, `state.json`, `logs/` und der Serverordner werden nie angefasst. Von einer älteren Version kommend: [UPGRADE.de.md](UPGRADE.de.md).
+Alle 6 h (oder per `/mc bot update`) holt der Bot das neueste GitHub-Release, prüft jede Datei gegen die SHA-256-Prüfsummen in `release-manifest.json`, sichert die bisherigen Dateien nach `update/backup/`, installiert und startet sich neu. Stürzt die neue Version beim Start ab, stellt `start-bot.bat` die vorherige wieder her und überspringt diese Version. `.env`, `state.json`, `logs/` und der Serverordner werden nie angefasst. Installationen von vor v1.3 bleiben nach dem Update deutsch; `LANGUAGE` in der `.env` ändert das.
 
 > ⚠️ Wer im Update-Repo Releases veröffentlichen kann, kann Code auf dem Host-PC ausführen. Prüfsummen schützen vor kaputten Downloads, nicht vor einem übernommenen GitHub-Konto – **2FA aktivieren**. Wer das nicht will, setzt `AUTO_UPDATE=false`. Eigener Fork? `UPDATE_REPO` (oder `updateRepo` in der `package.json`) auf das eigene Repo setzen.
 

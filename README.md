@@ -84,7 +84,7 @@ Discord can only hide whole commands, so everyone sees all `/mc` subcommands –
 
 ## Auto-update
 
-Every 6 h (or on `/mc bot update`) the bot fetches the latest GitHub release, verifies every file against the SHA-256 checksums in `release-manifest.json`, backs up the current files to `update/backup/`, installs and restarts itself. If the new version crashes on startup, `start-bot.bat` restores the previous one and skips that version. `.env`, `state.json`, `logs/` and the server folder are never touched. Coming from an older version: [UPGRADE.md](UPGRADE.md).
+Every 6 h (or on `/mc bot update`) the bot fetches the latest GitHub release, verifies every file against the SHA-256 checksums in `release-manifest.json`, backs up the current files to `update/backup/`, installs and restarts itself. If the new version crashes on startup, `start-bot.bat` restores the previous one and skips that version. `.env`, `state.json`, `logs/` and the server folder are never touched. Installations from before v1.3 stay German after the update; `LANGUAGE` in `.env` changes that.
 
 > ⚠️ Whoever can publish releases in the update repo can run code on the host PC. Checksums protect against broken downloads, not against a compromised GitHub account – **enable 2FA**. Hosts who don't want this set `AUTO_UPDATE=false`. Running a fork? Point `UPDATE_REPO` (or `updateRepo` in `package.json`) at your own repo.
 
